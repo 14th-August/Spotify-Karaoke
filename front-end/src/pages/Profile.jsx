@@ -1,4 +1,5 @@
 // front-end/src/components/Profile.jsx
+// NOTE TO RENMEMBER TO do COde REVIEW!
 import { useEffect, useState } from 'react';
 
 export default function Profile() {

@@ -1,2 +1,0 @@
-fastapi=0.121.2
-spotipy=2.26.0

@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react'; // Add useRef
+import { useEffect, useRef } from 'react';
+import { exchangeCodeForToken } from '../Api/spotify';
+import { setToken } from '../Authorization/tokenStorage';
 
 export default function Callback() {
     const fetchedRef = useRef(false); // Create a lockout switch
@@ -40,33 +42,22 @@ export default function Callback() {
             return;
         }
 
-        fetch('https://accounts.spotify.com/api/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                client_id: import.meta.env.VITE_SPOTIFY_CLIENT_ID,
-                grant_type: 'authorization_code',
-                code: code,
-                redirect_uri: import.meta.env.VITE_SPOTIFY_REDIRECT_URI,
-                code_verifier: verifier,
-            }),
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.access_token) {
-                localStorage.setItem('spotify_token', data.access_token);
+        exchangeCodeForToken(code, verifier)
+            .then(data => {
+                if (data.access_token) {
+                    setToken(data.access_token);
+                    cleanup();
+                    // Go home after success
+                    window.location.href = '/';
+                } else {
+                    console.error("❌ Trade failed:", data);
+                    cleanup();
+                }
+            })
+            .catch(err => {
+                console.error("📡 Network Error:", err);
                 cleanup();
-                // Go home after success
-                window.location.href = '/';
-            } else {
-                console.error("❌ Trade failed:", data);
-                cleanup();
-            }
-        })
-        .catch(err => {
-            console.error("📡 Network Error:", err);
-            cleanup();
-        });
+            });
     }, []);
 
     return <h1>Checking your credentials...</h1>;

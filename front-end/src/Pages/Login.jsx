@@ -1,4 +1,4 @@
-import { useSpotifyAuth } from '../OAuth/useSpotifyAuth';
+import { useSpotifyAuth } from '../Authorization/useSpotifyAuth';
 
 export default function Login() {
     const { login } = useSpotifyAuth();

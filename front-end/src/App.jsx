@@ -5,13 +5,14 @@
  * Will be loaded as soon as you open the app, and will decide which page to show based on the URL and whether you have a token stored.
  */
 
-import Login from './pages/Login';
-import Callback from './pages/Callback';
-import Profile from './pages/Profile';
+import Login from './Pages/Login';
+import Callback from './Pages/Callback';
+import Profile from './Pages/Profile';
+import { getToken } from './Authorization/tokenStorage';
 
 function App() {
   const path = window.location.pathname;
-  const hasToken = localStorage.getItem('spotify_token');
+  const hasToken = getToken();
 
   if (path.includes('/auth/callback')) {
     return <Callback />;

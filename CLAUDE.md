@@ -22,14 +22,20 @@ npm run preview   # Preview production build
 
 **Stack:** React 19 + Vite (frontend only). No TypeScript — pure JavaScript/JSX.
 
-**Routing:** `App.jsx` does manual path-based routing by checking `window.location.pathname` and `localStorage.getItem('spotify_token')`. No React Router. Three routes:
-- `/auth/callback` → `Callback.jsx` (handles OAuth code exchange)
-- Any path with a token in localStorage → `Profile.jsx`
-- Otherwise → `Login.jsx`
+**Source layout:** `front-end/src/` is split into four folders:
+- `Components/` — reusable React components.
+- `Api/` — single home for outbound HTTP. `spotify.js` wraps every Spotify endpoint; add `supabase.js` here when scores/leaderboard work begins (Supabase JS client is intentionally not yet installed).
+- `Pages/` — route-level components (`Login`, `Callback`, `Profile`).
+- `Authorization/` — `useSpotifyAuth.js` (PKCE login hook) and `tokenStorage.js` (the only place that touches `localStorage` for the access token; change this file if migrating off localStorage).
 
-**OAuth:** Spotify PKCE flow, entirely client-side (no server needed for auth). The hook in `front-end/src/OAuth/useSpotifyAuth.js` generates the code verifier/challenge and redirects to Spotify. `Callback.jsx` handles the token exchange against `https://accounts.spotify.com/api/token` and stores the access token in `localStorage`.
+**Routing:** `App.jsx` does manual path-based routing by checking `window.location.pathname` and the token via `tokenStorage.getToken()`. No React Router. Three routes:
+- `/auth/callback` → `Pages/Callback.jsx` (validates OAuth `state`, then exchanges the code for a token)
+- Any path with a stored token → `Pages/Profile.jsx`
+- Otherwise → `Pages/Login.jsx`
 
-**State:** No global state library. Token and code verifier persist via `localStorage`. Profile data is fetched fresh from `https://api.spotify.com/v1/me` on each Profile render.
+**OAuth:** Spotify PKCE flow, entirely client-side. `Authorization/useSpotifyAuth.js` generates the verifier + S256 challenge and a CSRF `state` nonce, then redirects to Spotify. `Pages/Callback.jsx` validates the returned state, then calls `Api/spotify.js#exchangeCodeForToken` to swap the code for an access token, which it stores via `tokenStorage.setToken`.
+
+**State:** No global state library. Access token persists via `Authorization/tokenStorage.js`. Profile and other Spotify data are fetched fresh through `Api/spotify.js` on each render.
 
 ## Environment Variables
 

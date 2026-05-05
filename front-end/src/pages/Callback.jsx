@@ -9,36 +9,64 @@ export default function Callback() {
         fetchedRef.current = true;
 
         console.log("🏃 Callback logic started (Only once!)");
-        
+
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
+        const returnedState = urlParams.get('state');
+        const oauthError = urlParams.get('error');
         const verifier = localStorage.getItem('code_verifier');
+        const expectedState = localStorage.getItem('oauth_state');
 
-        if (code && verifier) {
-            fetch('https://accounts.spotify.com/api/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    client_id: import.meta.env.VITE_SPOTIFY_CLIENT_ID,
-                    grant_type: 'authorization_code',
-                    code: code,
-                    redirect_uri: import.meta.env.VITE_SPOTIFY_REDIRECT_URI,
-                    code_verifier: verifier,
-                }),
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.access_token) {
-                    console.log("🎉 SUCCESS! Token:", data.access_token);
-                    localStorage.setItem('spotify_token', data.access_token);
-                    // Go home after success
-                    window.location.href = '/';
-                } else {
-                    console.error("❌ Trade failed:", data);
-                }
-            })
-            .catch(err => console.error("📡 Network Error:", err));
+        // One-shot values: clear on every terminal branch so a stale verifier/state can't be replayed.
+        const cleanup = () => {
+            localStorage.removeItem('code_verifier');
+            localStorage.removeItem('oauth_state');
+        };
+
+        if (oauthError) {
+            console.error("❌ Spotify auth error:", oauthError);
+            cleanup();
+            return;
         }
+
+        if (!returnedState || returnedState !== expectedState) {
+            console.error("❌ OAuth state mismatch — aborting token exchange.");
+            cleanup();
+            return;
+        }
+
+        if (!code || !verifier) {
+            cleanup();
+            return;
+        }
+
+        fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                client_id: import.meta.env.VITE_SPOTIFY_CLIENT_ID,
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: import.meta.env.VITE_SPOTIFY_REDIRECT_URI,
+                code_verifier: verifier,
+            }),
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.access_token) {
+                localStorage.setItem('spotify_token', data.access_token);
+                cleanup();
+                // Go home after success
+                window.location.href = '/';
+            } else {
+                console.error("❌ Trade failed:", data);
+                cleanup();
+            }
+        })
+        .catch(err => {
+            console.error("📡 Network Error:", err);
+            cleanup();
+        });
     }, []);
 
     return <h1>Checking your credentials...</h1>;

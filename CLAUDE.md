@@ -35,14 +35,6 @@ npm run preview   # Preview production build
 
 `front-end/.env` holds:
 - `VITE_SPOTIFY_CLIENT_ID` — Spotify app client ID
-- `VITE_SPOTIFY_REDIRECT_URI` — Must match exactly what's registered in the Spotify developer dashboard (currently `http://127.0.0.1:3001/auth/callback`)
+- `VITE_SPOTIFY_REDIRECT_URI` — Must match exactly what's registered in the Spotify developer dashboard (currently `http://127.0.0.1:3001/auth/callback`). The Vite dev server is pinned to host `127.0.0.1` and port `3001` in `vite.config.js` precisely so the running app matches this redirect.
 
-When changing the redirect URI, update both the `.env` file and the Spotify app settings at developer.spotify.com.
-
-## Key Files
-
-- [front-end/src/App.jsx](front-end/src/App.jsx) — routing logic
-- [front-end/src/OAuth/useSpotifyAuth.js](front-end/src/OAuth/useSpotifyAuth.js) — PKCE OAuth hook
-- [front-end/src/pages/Callback.jsx](front-end/src/pages/Callback.jsx) — token exchange
-- [front-end/src/pages/Profile.jsx](front-end/src/pages/Profile.jsx) — Spotify user profile display
-- [front-end/src/pages/Login.jsx](front-end/src/pages/Login.jsx) — login entry point
+When changing the redirect URI, update the `.env` file, `vite.config.js`, and the Spotify app settings at developer.spotify.com.

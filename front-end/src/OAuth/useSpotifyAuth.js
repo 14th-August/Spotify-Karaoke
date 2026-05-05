@@ -24,9 +24,13 @@ export const useSpotifyAuth = () => {
     const login = async () => {
         // Create a SECURE 64-character secret word
         const verifier = generateRandomString(64);
-        
+
         // Save it to the "pocket" immediately
         localStorage.setItem('code_verifier', verifier);
+
+        // CSRF state: random nonce echoed back by Spotify and validated in Callback.jsx
+        const state = generateRandomString(32);
+        localStorage.setItem('oauth_state', state);
 
         // Hash it for S256
         const hashed = await sha256(verifier);
@@ -36,6 +40,7 @@ export const useSpotifyAuth = () => {
             client_id: import.meta.env.VITE_SPOTIFY_CLIENT_ID,
             response_type: 'code',
             redirect_uri: import.meta.env.VITE_SPOTIFY_REDIRECT_URI,
+            state: state,
             code_challenge_method: 'S256',
             code_challenge: codeChallenge,
             scope: 'user-read-private user-read-email'

@@ -9,7 +9,12 @@ const authHeader = (token) => ({ Authorization: `Bearer ${token}` });
 
 const get = async (path, token) => {
     const res = await fetch(`${API_BASE}${path}`, { headers: authHeader(token) });
-    if (!res.ok) throw new Error(`Spotify ${path} failed: ${res.status}`);
+    if (!res.ok) {
+        // Attach status so callers can branch on 401 (token expired) vs other failures
+        const err = new Error(`Spotify ${path} failed: ${res.status}`);
+        err.status = res.status;
+        throw err;
+    }
     return res.json();
 };
 

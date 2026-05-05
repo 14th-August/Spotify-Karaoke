@@ -1,19 +1,41 @@
 import { useEffect, useState } from 'react';
-import { Box, Card, CardContent, Avatar, Typography, CircularProgress, Stack } from '@mui/material';
+import { Box, Card, CardContent, Avatar, Typography, CircularProgress, Stack, Alert } from '@mui/material';
 import { getCurrentUser } from '../Api/spotify';
-import { getToken } from '../Authorization/tokenStorage';
+import { getToken, clearToken } from '../Authorization/tokenStorage';
 
 export default function Profile() {
     const [user, setUser] = useState(null);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const token = getToken();
-        if (!token) return;
+        if (!token) {
+            // Belt-and-suspenders — App.jsx already gates on this, but if we got here without one, bounce home.
+            window.location.href = '/';
+            return;
+        }
 
         getCurrentUser(token)
             .then(setUser)
-            .catch(err => console.error("Profile fetch failed:", err));
+            .catch(err => {
+                if (err.status === 401) {
+                    // Token expired or revoked — Spotify access tokens live ~1 hour and we don't refresh yet.
+                    clearToken();
+                    window.location.href = '/';
+                    return;
+                }
+                console.error("Profile fetch failed:", err);
+                setError(err.message || 'Failed to load profile.');
+            });
     }, []);
+
+    if (error) {
+        return (
+            <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
+                <Alert severity="error" sx={{ maxWidth: 400 }}>{error}</Alert>
+            </Box>
+        );
+    }
 
     if (!user) {
         return (

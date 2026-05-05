@@ -26,3 +26,6 @@ logs/
 
 coverage/
 .nyc_output/
+
+# Local Claude Code settings (machine-specific, do not commit)
+.claude/

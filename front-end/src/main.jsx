@@ -1,16 +1,19 @@
 /**
  * main.jsx
- * Used to Create Root of the project. Vite Specific
- * Mounts react pp into Root
+ * Mounts the React app into #root. Wraps everything in MUI's ThemeProvider
+ * so any component can pull from the shared theme via the sx prop or hooks.
+ * CssBaseline normalizes browser defaults (margins, font smoothing, dark bg).
  */
 
-
-
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App'
-import './index.css'
+import ReactDOM from 'react-dom/client';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import App from './App';
+import theme from './theme';
+import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <App /> 
-)
+    <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <App />
+    </ThemeProvider>
+);

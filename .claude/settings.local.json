@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --prefix /c/Users/Owner/desktop/Spotlight/front-end install @mui/material @emotion/react @emotion/styled @mui/icons-material)"
+    ]
+  }
+}

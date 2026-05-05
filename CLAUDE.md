@@ -20,7 +20,7 @@ npm run preview   # Preview production build
 
 ## Architecture
 
-**Stack:** React 19 + Vite (frontend only). No TypeScript — pure JavaScript/JSX.
+**Stack:** React 19 + Vite + MUI (Material-UI). No TypeScript — pure JavaScript/JSX. Theme is defined in `front-end/src/theme.js` (Spotify-flavored dark) and applied in `main.jsx` via `ThemeProvider` + `CssBaseline`. Page styling uses MUI components and the `sx` prop; avoid raw inline styles in new code.
 
 **Source layout:** `front-end/src/` is split into four folders:
 - `Components/` — reusable React components.

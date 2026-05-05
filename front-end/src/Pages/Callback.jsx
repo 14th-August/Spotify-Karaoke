@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { exchangeCodeForToken } from '../Api/spotify';
 import { setToken } from '../Authorization/tokenStorage';
 
@@ -60,5 +61,12 @@ export default function Callback() {
             });
     }, []);
 
-    return <h1>Checking your credentials...</h1>;
+    return (
+        <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Stack spacing={2} alignItems="center">
+                <CircularProgress />
+                <Typography>Checking your credentials...</Typography>
+            </Stack>
+        </Box>
+    );
 }

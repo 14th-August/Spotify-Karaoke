@@ -1,4 +1,4 @@
-import { useSpotifyAuth } from '../hooks/useSpotifyAuth';
+import { useSpotifyAuth } from '../OAuth/useSpotifyAuth';
 
 export default function Login() {
     const { login } = useSpotifyAuth();

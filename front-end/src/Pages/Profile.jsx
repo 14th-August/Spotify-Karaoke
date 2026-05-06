@@ -16,13 +16,22 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Box, Card, CardContent, Avatar, Typography, CircularProgress, Stack, Alert } from '@mui/material';
+import { Box, Card, CardContent, Avatar, Typography, CircularProgress, Stack, Alert, Button } from '@mui/material';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { getCurrentUser } from '../Api/spotify';
 import { getToken, clearToken } from '../Authorization/tokenStorage';
 
 export default function Profile() {
     const [user, setUser] = useState(null);
     const [error, setError] = useState(null);
+
+    // Wipe the token and bounce home — App.jsx will then route to Login.
+    // Note: this only logs us out *locally*; the user stays signed in to
+    // Spotify itself, so the next login skips Spotify's consent screen.
+    const handleLogout = () => {
+        clearToken();
+        window.location.href = '/';
+    };
 
     useEffect(() => {
         const token = getToken();
@@ -77,6 +86,15 @@ export default function Profile() {
                         />
                         <Typography variant="h5">Welcome, {user.display_name}!</Typography>
                         <Typography variant="body2" color="text.secondary">{user.email}</Typography>
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            onClick={handleLogout}
+                            startIcon={<LogoutIcon />}
+                            sx={{ mt: 1 }}
+                        >
+                            Log out
+                        </Button>
                     </Stack>
                 </CardContent>
             </Card>

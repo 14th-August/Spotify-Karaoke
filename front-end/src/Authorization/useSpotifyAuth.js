@@ -1,26 +1,48 @@
-// front-end/src/hooks/useSpotifyAuth.js
+/**
+ * useSpotifyAuth.js
+ * The PKCE login flow as a React hook.
+ *
+ * PKCE (Proof Key for Code Exchange) lets a public client — a browser app
+ * with no secrets it can keep — do OAuth securely. The trick:
+ *   1. We invent a long random "verifier" and stash it in localStorage.
+ *   2. We hash it (SHA-256) into a "challenge" and send the challenge to
+ *      Spotify when starting login.
+ *   3. Spotify redirects back with an auth code. In Callback.jsx we trade
+ *      the code + the original verifier for an access token. Because only
+ *      we know the verifier, an attacker who steals the auth code in
+ *      transit can't trade it.
+ *
+ * `state` is a separate random nonce sent on the way out and echoed back
+ * on the way in. It protects against CSRF: if the value coming back
+ * doesn't match what we stored, we refuse the token exchange.
+ */
 
 export const useSpotifyAuth = () => {
-    
-    // 1. Helper to hash the secret (The "Math" Spotify wants)
+
+    // Hash a string with SHA-256 (the "Math" Spotify wants for the challenge).
     const sha256 = async (plain) => {
         const encoder = new TextEncoder();
         const data = encoder.encode(plain);
         return window.crypto.subtle.digest('SHA-256', data);
     };
 
+    // Convert the SHA-256 byte array into URL-safe base64 (no padding, +/ → -_).
     const base64encode = (input) => {
         return btoa(String.fromCharCode(...new Uint8Array(input)))
             .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
     };
 
-    // 2. NEW: Secure Random String Generator
+    // Cryptographically-random alphanumeric string of `length` chars.
+    // Used for both the PKCE verifier (64) and the CSRF state nonce (32).
     const generateRandomString = (length) => {
         const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         const values = crypto.getRandomValues(new Uint8Array(length));
         return values.reduce((acc, x) => acc + possible[x % possible.length], "");
     };
 
+    // Kick off login. Generates verifier + state, stashes them, hashes the
+    // verifier into the S256 challenge, then redirects to Spotify's authorize
+    // page. The continuation lives in Callback.jsx.
     const login = async () => {
         // Create a SECURE 64-character secret word
         const verifier = generateRandomString(64);

@@ -1,3 +1,23 @@
+/**
+ * Pages/Callback.jsx
+ * Handles the redirect Spotify sends back to /auth/callback after the
+ * user approves (or denies) login. Steps, in order:
+ *   1. If Spotify reports an `error` in the URL → bail out.
+ *   2. Validate the returned `state` against what we stored — if it
+ *      doesn't match, abort (CSRF protection).
+ *   3. Trade the auth `code` + the stored PKCE verifier for an access
+ *      token via Api/spotify.js#exchangeCodeForToken.
+ *   4. Stash the token via tokenStorage.setToken and bounce back to /,
+ *      which App.jsx now routes to Profile.
+ *   5. On every terminal branch (success, failure, mismatch) we wipe
+ *      the one-shot verifier + state from localStorage so they can't
+ *      be replayed.
+ *
+ * The fetchedRef lock prevents React's StrictMode from double-firing
+ * the effect and double-spending the auth code (Spotify only accepts
+ * each code once).
+ */
+
 import { useEffect, useRef } from 'react';
 import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { exchangeCodeForToken } from '../Api/spotify';

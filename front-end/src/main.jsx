@@ -1,8 +1,9 @@
 /**
  * main.jsx
- * Mounts the React app into #root. Wraps everything in MUI's ThemeProvider
- * so any component can pull from the shared theme via the sx prop or hooks.
- * CssBaseline normalizes browser defaults (margins, font smoothing, dark bg).
+ * Mounts <App /> into #root and wraps everything in MUI's ThemeProvider
+ * + CssBaseline. The provider makes the palette from theme.js available
+ * to every descendant; CssBaseline normalizes browser defaults (margins,
+ * font smoothing, dark background).
  */
 
 import ReactDOM from 'react-dom/client';

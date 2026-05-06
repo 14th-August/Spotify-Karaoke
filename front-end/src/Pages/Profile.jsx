@@ -1,3 +1,20 @@
+/**
+ * Pages/Profile.jsx
+ * Logged-in landing view. Fetches the user's Spotify profile via
+ * Api/spotify.js#getCurrentUser and renders an MUI card with their
+ * avatar, name, and email.
+ *
+ * Failure modes:
+ *   - 401 → token expired or revoked. Spotify access tokens last about
+ *     an hour and we don't have a refresh flow yet, so we clear the
+ *     stored token and bounce home. App.jsx then routes to Login and
+ *     the user signs in fresh.
+ *   - other errors → render an MUI Alert. We don't know the cause, but
+ *     stuck-on-spinner-forever is a worse UX than a clear error.
+ *   - missing token (shouldn't happen — App.jsx gates on it) → bounce
+ *     home as belt-and-suspenders.
+ */
+
 import { useEffect, useState } from 'react';
 import { Box, Card, CardContent, Avatar, Typography, CircularProgress, Stack, Alert } from '@mui/material';
 import { getCurrentUser } from '../Api/spotify';

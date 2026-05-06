@@ -1,3 +1,11 @@
+/**
+ * Pages/Login.jsx
+ * Entry view for anonymous users (no token in localStorage). The button
+ * calls useSpotifyAuth().login(), which kicks off the PKCE flow and
+ * redirects the browser to Spotify. The user comes back to /auth/callback,
+ * which is handled by Callback.jsx.
+ */
+
 import { Container, Stack, Typography, Button } from '@mui/material';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import { useSpotifyAuth } from '../Authorization/useSpotifyAuth';

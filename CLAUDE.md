@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Spotlight is a Spotify-integrated karaoke web app. Currently implemented: Spotify OAuth login and user profile display. Frontend-only — the previous FastAPI backend was removed; if a server becomes necessary later (score validation, httpOnly-cookie sessions), the recommended path is a small Supabase Edge Function or Cloudflare Worker rather than a separate Python service.
 
+For a file-by-file walkthrough of the user flow and module responsibilities, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## Commands
 
 All frontend work happens inside `front-end/`:

@@ -22,7 +22,7 @@ export default function Login() {
                 justifyContent: 'center',
             }}
         >
-            <Stack spacing={4} alignItems="center" textAlign="center">
+            <Stack spacing={4} sx={{ alignItems: 'center', textAlign: 'center' }}>
                 <Typography variant="h3" component="h1">Karaoke App</Typography>
                 <Typography variant="body1" color="text.secondary">
                     Sign in with Spotify to start singing.

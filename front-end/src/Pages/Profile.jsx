@@ -66,7 +66,7 @@ export default function Profile() {
     if (!user) {
         return (
             <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Stack spacing={2} alignItems="center">
+                <Stack spacing={2} sx={{ alignItems: 'center' }}>
                     <CircularProgress />
                     <Typography>Loading your Spotify profile...</Typography>
                 </Stack>
@@ -78,7 +78,7 @@ export default function Profile() {
         <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
             <Card sx={{ maxWidth: 400, width: '100%' }}>
                 <CardContent>
-                    <Stack spacing={2} alignItems="center" textAlign="center">
+                    <Stack spacing={2} sx={{ alignItems: 'center', textAlign: 'center' }}>
                         <Avatar
                             src={user.images?.[0]?.url}
                             alt={user.display_name}

@@ -83,7 +83,7 @@ export default function Callback() {
 
     return (
         <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Stack spacing={2} alignItems="center">
+            <Stack spacing={2} sx={{ alignItems: 'center' }}>
                 <CircularProgress />
                 <Typography>Checking your credentials...</Typography>
             </Stack>

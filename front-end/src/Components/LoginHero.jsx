@@ -1,22 +1,23 @@
 /**
  * Components/LoginHero.jsx
- * The split-hero login layout: a welcome panel on the left and a Spotify
- * login CTA on the right. Stacks vertically below 900px (MUI's `md`
- * breakpoint) and the divider re-orients itself horizontally automatically
- * because we pass it as Stack's `divider` prop — Stack always orients its
- * divider perpendicular to its own direction.
+ * Sleek, Apple-flavored login layout. Two panels share a soft white
+ * gradient and meet at a 1px black divider. Stacks vertically below
+ * 900px (MUI's `md` breakpoint) and the panel divider re-orients
+ * itself horizontally automatically because we pass it as Stack's
+ * `divider` prop.
  *
- * The PKCE OAuth flow lives in useSpotifyAuth; the button here just calls
- * login() and the rest of the redirect-back happens in Pages/Callback.jsx.
+ * The PKCE OAuth flow lives in useSpotifyAuth; the button here just
+ * calls login() and the rest of the redirect-back happens in
+ * Pages/Callback.jsx.
  */
 
-import { Box, Button, Divider, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { useSpotifyAuth } from '../Authorization/useSpotifyAuth';
 
 // Inline Spotify SVG — the recognizable three-arc "S" mark in Spotify
-// green. Kept inline in this file because it's only used here for now;
-// promote to its own Components/SpotifyLogo.jsx if a second caller appears.
-function SpotifyLogo({ size = 96 }) {
+// green. Kept inline because it's only used here for now; promote to
+// its own Components/SpotifyLogo.jsx if a second caller appears.
+function SpotifyLogo({ size = 88 }) {
     return (
         <svg
             viewBox="0 0 24 24"
@@ -31,53 +32,105 @@ function SpotifyLogo({ size = 96 }) {
     );
 }
 
+// Apple's near-black + subdued grey, lifted from the apple.com style.
+const APPLE_NEAR_BLACK = '#1d1d1f';
+const APPLE_SUBTLE_GREY = '#6e6e73';
+
 export default function LoginHero() {
     const { login } = useSpotifyAuth();
 
     return (
         <Stack
             direction={{ xs: 'column', md: 'row' }}
-            divider={<Divider flexItem />}
-            sx={{ minHeight: '100vh' }}
+            divider={
+                // Short black line — 1/3 of the viewport on the cross-axis,
+                // centered. Use vh/vw so the size resolves regardless of
+                // parent height (min-height alone doesn't give percentages
+                // a definite value to compute against — they collapse to 0).
+                <Box
+                    sx={{
+                        alignSelf: 'center',
+                        backgroundColor: APPLE_NEAR_BLACK,
+                        width: { xs: '33vw', md: '1px' },
+                        height: { xs: '1px', md: '33vh' },
+                    }}
+                />
+            }
+            sx={{
+                minHeight: '100vh',
+                background: 'linear-gradient(135deg, #ffffff 0%, #f5f5f7 100%)',
+            }}
         >
-            {/* Left panel: welcome message over a Spotify-toned gradient. */}
+            {/* Left panel: welcome message. Content sits toward the
+                divider with a tighter inner gap than the right panel,
+                centered on mobile when the layout stacks vertically. */}
             <Box
                 sx={{
                     flex: 1,
-                    background: 'linear-gradient(135deg, #121212 0%, #0d6635 100%)',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    p: 4,
+                    justifyContent: { xs: 'center', md: 'flex-end' },
+                    py: { xs: 3, md: 4 },
+                    pl: { xs: 3, md: 4 },
+                    pr: { xs: 3, md: 2 },
                 }}
             >
-                <Stack spacing={2} sx={{ textAlign: 'center', maxWidth: 480 }}>
-                    <Typography variant="h2" component="h1">
-                        Welcome to Spotlight
+                <Stack spacing={2} sx={{ textAlign: 'center', maxWidth: 520 }}>
+                    <Typography
+                        variant="h1"
+                        component="h1"
+                        sx={{
+                            color: APPLE_NEAR_BLACK,
+                            fontSize: { xs: '2.5rem', md: '3.75rem' },
+                        }}
+                    >
+                        Welcome to Spotlight!
                     </Typography>
-                    <Typography variant="h6" sx={{ textDecoration: 'underline' }}>
+                    <Typography
+                        variant="h6"
+                        sx={{ color: APPLE_SUBTLE_GREY }}
+                    >
                         A Karaoke Application Using Spotify API
                     </Typography>
                 </Stack>
             </Box>
 
-            {/* Right panel: Spotify mark + login CTA. */}
+            {/* Right panel: Spotify mark + CTA. Mirrors the left panel —
+                content sits toward the divider on desktop, centered on mobile. */}
             <Box
                 sx={{
                     flex: 1,
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    p: 4,
+                    justifyContent: { xs: 'center', md: 'flex-start' },
+                    py: { xs: 3, md: 4 },
+                    pl: { xs: 3, md: 8 },
+                    pr: { xs: 3, md: 2 },
                 }}
             >
-                <Stack spacing={4} sx={{ alignItems: 'center' }}>
+                <Stack spacing={3} sx={{ alignItems: 'center' }}>
                     <SpotifyLogo />
                     <Button
                         variant="contained"
                         size="large"
                         color="primary"
                         onClick={login}
+                        sx={{
+                            borderRadius: 999,             // Apple-style pill
+                            px: 5,
+                            py: 1.5,
+                            fontSize: '1rem',
+                            boxShadow: 'none',
+                            transition: 'box-shadow 200ms ease, transform 200ms ease',
+                            '&:hover': {
+                                // Soft Spotify-green glow on hover, Apple-button feel.
+                                boxShadow: '0 8px 24px rgba(29, 185, 84, 0.35)',
+                                transform: 'translateY(-1px)',
+                            },
+                            '&:active': {
+                                transform: 'translateY(0)',
+                            },
+                        }}
                     >
                         Login with Spotify
                     </Button>

@@ -38,7 +38,9 @@ import { searchTracks } from '../Api/spotify';
 import { getToken, clearToken } from '../Authorization/tokenStorage';
 
 const DEBOUNCE_MS = 300;
-const RESULT_LIMIT = 25;
+// Spotify's documented default; some newer dev apps reject other
+// integers (we hit `Invalid limit` on 25). 20 is reliably accepted.
+const RESULT_LIMIT = 20;
 
 export default function Search() {
     const [query, setQuery] = useState('');
@@ -154,17 +156,21 @@ export default function Search() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Song, artist, album…"
-                InputProps={{
-                    startAdornment: (
-                        <InputAdornment position="start">
-                            <SearchIcon sx={{ color: 'text.secondary' }} />
-                        </InputAdornment>
-                    ),
-                    endAdornment: loading ? (
-                        <InputAdornment position="end">
-                            <CircularProgress size={18} />
-                        </InputAdornment>
-                    ) : null,
+                // MUI v9: input adornments live under slotProps.input
+                // (replaces the deprecated InputProps prop).
+                slotProps={{
+                    input: {
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon sx={{ color: 'text.secondary' }} />
+                            </InputAdornment>
+                        ),
+                        endAdornment: loading ? (
+                            <InputAdornment position="end">
+                                <CircularProgress size={18} />
+                            </InputAdornment>
+                        ) : null,
+                    },
                 }}
                 sx={{ mb: 3 }}
             />

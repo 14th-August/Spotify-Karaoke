@@ -10,6 +10,7 @@
 import Login from './Pages/Login';
 import Callback from './Pages/Callback';
 import Profile from './Pages/Profile';
+import Search from './Pages/Search';
 import ThemeToggle from './Components/ThemeToggle';
 import SideNav from './Components/SideNav';
 import { getToken } from './Authorization/tokenStorage';
@@ -40,13 +41,17 @@ function App() {
     );
   }
 
-  // 3. Logged in → wrap the page in SideNav. The sidebar provides the
-  //    theme toggle + logout, so no fixed-corner ThemeToggle here.
-  return (
-    <SideNav>
-      <Profile />
-    </SideNav>
-  );
+  // 3. Logged in → pick a page based on path, wrap it in SideNav. The
+  //    sidebar provides the theme toggle + logout, so no fixed-corner
+  //    ThemeToggle here.
+  let page;
+  if (path.startsWith('/search')) {
+    page = <Search />;
+  } else {
+    page = <Profile />;
+  }
+
+  return <SideNav>{page}</SideNav>;
 }
 
 export default App;

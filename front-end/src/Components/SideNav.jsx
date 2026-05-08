@@ -44,12 +44,13 @@ const EXPANDED_WIDTH = 240;
 
 // Three groups: LIBRARY (search/browse), COMPETE (social/score),
 // TUNE (audio setup). Group labels show only when the sidebar is
-// expanded (or always, in the mobile drawer).
+// expanded (or always, in the mobile drawer). Items with a `route`
+// navigate; items without one show a "Coming soon" Snackbar.
 const NAV_GROUPS = [
     {
         label: 'LIBRARY',
         items: [
-            { id: 'search', label: 'Search Song', icon: <SearchIcon fontSize="small" /> },
+            { id: 'search', label: 'Search Song', icon: <SearchIcon fontSize="small" />, route: '/search' },
             { id: 'albums', label: 'Select Album', icon: <AlbumIcon fontSize="small" /> },
         ],
     },
@@ -167,14 +168,18 @@ export default function SideNav({ children }) {
         };
     }, []);
 
-    const showComingSoon = (label) => {
-        setToastMsg(`${label} — coming soon`);
-        setDrawerOpen(false); // close the mobile drawer after a tap
+    const handleNavClick = (item) => {
+        setDrawerOpen(false);
+        if (item.route) {
+            window.location.assign(item.route);
+            return;
+        }
+        setToastMsg(`${item.label} — coming soon`);
     };
 
     const handleLogout = () => {
         clearToken();
-        window.location.href = '/';
+        window.location.assign('/');
     };
 
     const isDark = mode === 'dark';
@@ -183,7 +188,8 @@ export default function SideNav({ children }) {
     // The shared nav body — same JSX in the desktop rail and the mobile drawer.
     const navContent = (
         <Stack sx={{ height: '100%', overflow: 'hidden' }}>
-            {/* Brand row — Spotify avatar (or sparkle fallback) + app name. */}
+            {/* Brand row — Spotify avatar (or sparkle fallback) + display
+                name (with the SPOTLIGHT brand as a small secondary line). */}
             <Box
                 sx={{
                     display: 'flex',
@@ -224,16 +230,31 @@ export default function SideNav({ children }) {
                         ✦
                     </Box>
                 )}
-                <Typography
-                    data-nav-label
-                    sx={{
-                        fontWeight: 700,
-                        letterSpacing: '0.05em',
-                        whiteSpace: 'nowrap',
-                    }}
-                >
-                    SPOTLIGHT
-                </Typography>
+                <Box data-nav-label sx={{ minWidth: 0 }}>
+                    <Typography
+                        sx={{
+                            fontWeight: 600,
+                            fontSize: '0.95rem',
+                            lineHeight: 1.2,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                        }}
+                    >
+                        {user?.display_name || 'Welcome'}
+                    </Typography>
+                    <Typography
+                        sx={{
+                            fontSize: '0.65rem',
+                            fontWeight: 600,
+                            color: 'text.secondary',
+                            letterSpacing: '0.08em',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        SPOTLIGHT
+                    </Typography>
+                </Box>
             </Box>
 
             <Divider />
@@ -248,7 +269,7 @@ export default function SideNav({ children }) {
                                 key={item.id}
                                 icon={item.icon}
                                 label={item.label}
-                                onClick={() => showComingSoon(item.label)}
+                                onClick={() => handleNavClick(item)}
                             />
                         ))}
                     </Box>

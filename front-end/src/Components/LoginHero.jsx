@@ -2,9 +2,11 @@
  * Components/LoginHero.jsx
  * Asymmetric two-column login. Left column stacks the welcome heading,
  * subtitle, and login button; right column holds the Spotify mark on a
- * slowly-spinning ring of album-cover-style images. Theme-aware: text
- * and background follow the active light/dark palette, only the
- * Spotify-green hover stays constant.
+ * slowly-spinning ring of real album covers (fetched from iTunes' free
+ * search API on first load, cached in localStorage thereafter).
+ *
+ * Theme-aware: text and background follow the active light/dark palette,
+ * only the Spotify-green hover stays constant.
  *
  * On mobile (<900px) the layout collapses to a single centered column.
  *
@@ -12,19 +14,95 @@
  * redirect-back is handled by Pages/Callback.jsx.
  */
 
+import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { useSpotifyAuth } from '../Authorization/useSpotifyAuth';
 
 const SPOTIFY_GREEN = '#1DB954';
+const COVER_CACHE_KEY = 'album_covers_v1';
 
-// Stable Lorem Picsum URLs — each `seed` maps to a fixed photo, so the
-// wheel shows the same 10 images across reloads. Drop-in replacements for
-// when real album art lands via the Spotify API later.
-const ALBUM_IMAGE_URL = (seed) => `https://picsum.photos/seed/${seed}/200/200`;
-const ALBUM_SEEDS = [
-    'spotlight-1', 'spotlight-2', 'spotlight-3', 'spotlight-4', 'spotlight-5',
-    'spotlight-6', 'spotlight-7', 'spotlight-8', 'spotlight-9', 'spotlight-10',
+// Iconic albums whose covers populate the wheel before the user logs in.
+// Once authenticated, the wheel could be re-populated with the user's
+// own recently-played / top albums via the Spotify API (future work).
+const POPULAR_ALBUMS = [
+    'Random Access Memories Daft Punk',
+    'Dark Side of the Moon Pink Floyd',
+    'Nevermind Nirvana',
+    'Thriller Michael Jackson',
+    'Abbey Road Beatles',
+    'After Hours The Weeknd',
+    'Blonde Frank Ocean',
+    'Currents Tame Impala',
+    'Lemonade Beyonce',
+    'OK Computer Radiohead',
 ];
+
+// Fallback shown while the iTunes lookup is in flight (or if it fails
+// outright). Stable Picsum seeds so first paint isn't empty.
+const FALLBACK_COVERS = POPULAR_ALBUMS.map(
+    (_, i) => `https://picsum.photos/seed/spotlight-${i}/300/300`
+);
+
+// Hit the free iTunes Search API for each album title, return the
+// 300×300 cover URLs (upscaled from the 100×100 default by string swap).
+// Returns null in any per-item slot that errors so the caller can
+// decide whether to keep the partial result or fall back wholesale.
+async function fetchAlbumCovers() {
+    return Promise.all(
+        POPULAR_ALBUMS.map(async (term) => {
+            try {
+                const r = await fetch(
+                    `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=album&limit=1`,
+                );
+                if (!r.ok) return null;
+                const data = await r.json();
+                const art = data.results?.[0]?.artworkUrl100;
+                // Bump 100x100bb.jpg → 300x300bb.jpg by URL substitution.
+                return art ? art.replace('100x100bb', '300x300bb') : null;
+            } catch {
+                return null;
+            }
+        }),
+    );
+}
+
+// Hook: returns the current set of album cover URLs. Synchronous on
+// repeat visits (reads localStorage cache); async on first visit.
+function useAlbumCovers() {
+    const initial = useMemo(() => {
+        try {
+            const cached = JSON.parse(localStorage.getItem(COVER_CACHE_KEY) || 'null');
+            if (Array.isArray(cached) && cached.length === POPULAR_ALBUMS.length) {
+                return cached;
+            }
+        } catch {
+            // ignore parse errors and fall through
+        }
+        return FALLBACK_COVERS;
+    }, []);
+
+    const [covers, setCovers] = useState(initial);
+
+    useEffect(() => {
+        // Skip the API call if we already have a complete cache.
+        if (localStorage.getItem(COVER_CACHE_KEY)) return;
+        let cancelled = false;
+        fetchAlbumCovers().then((urls) => {
+            if (cancelled) return;
+            if (urls.every(Boolean)) {
+                localStorage.setItem(COVER_CACHE_KEY, JSON.stringify(urls));
+                setCovers(urls);
+            }
+            // Otherwise leave the fallbacks in place — iTunes is missing
+            // at least one and we don't want a half-real, half-Picsum mix.
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    return covers;
+}
 
 // Inline Spotify SVG. No fill attribute on the <svg> — the wrapping
 // Box controls the color via CSS (`fill: currentColor` on the path)
@@ -43,15 +121,16 @@ function SpotifyLogo({ size = 140 }) {
     );
 }
 
-// Rotating ring of image tiles. Each tile is placed on a circle of
+// Rotating ring of cover tiles. Each tile is placed on a circle of
 // radius `size/2` using the standard "rotate-translate-counter-rotate"
 // transform pattern. The whole ring spins via @keyframes on the wrapper.
 // Skip the spin entirely under prefers-reduced-motion.
-function AlbumWheel({ size = 340, tileSize = 56, count = ALBUM_SEEDS.length }) {
+function AlbumWheel({ covers, size = 340, tileSize = 56 }) {
     const radius = size / 2;
-    const tiles = Array.from({ length: count }, (_, i) => ({
+    const count = covers.length;
+    const tiles = covers.map((imageUrl, i) => ({
         angle: (i / count) * 360,
-        imageUrl: ALBUM_IMAGE_URL(ALBUM_SEEDS[i % ALBUM_SEEDS.length]),
+        imageUrl,
     }));
 
     return (
@@ -124,6 +203,7 @@ const HOVER_TO_GREEN = {
 
 export default function LoginHero() {
     const { login } = useSpotifyAuth();
+    const covers = useAlbumCovers();
 
     return (
         <Box
@@ -209,7 +289,7 @@ export default function LoginHero() {
                         minHeight: 380,         // give the wheel room
                     }}
                 >
-                    <AlbumWheel size={340} tileSize={56} count={10} />
+                    <AlbumWheel covers={covers} size={340} tileSize={56} />
                     <Box sx={{ ...HOVER_TO_GREEN, position: 'relative', zIndex: 1 }}>
                         <SpotifyLogo size={140} />
                     </Box>

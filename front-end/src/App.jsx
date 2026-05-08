@@ -11,33 +11,41 @@ import Login from './Pages/Login';
 import Callback from './Pages/Callback';
 import Profile from './Pages/Profile';
 import ThemeToggle from './Components/ThemeToggle';
+import SideNav from './Components/SideNav';
 import { getToken } from './Authorization/tokenStorage';
 
 function App() {
   const path = window.location.pathname;
   const hasToken = getToken();
 
-  // Pick the page first, then render with the always-on ThemeToggle.
-  let page;
   // 1. The Spotify redirect always lands on /auth/callback — handle it first
-  //    regardless of token state (the page itself sets the token).
+  //    regardless of token state (the page itself sets the token). No nav.
   if (path.includes('/auth/callback')) {
-    page = <Callback />;
-  }
-  // 2. Logged in → show the profile card.
-  else if (hasToken) {
-    page = <Profile />;
-  }
-  // 3. No token → show the login screen.
-  else {
-    page = <Login />;
+    return (
+      <>
+        <ThemeToggle />
+        <Callback />
+      </>
+    );
   }
 
+  // 2. No token → login screen. Theme toggle stays in the corner since
+  //    there's no sidebar to host it.
+  if (!hasToken) {
+    return (
+      <>
+        <ThemeToggle />
+        <Login />
+      </>
+    );
+  }
+
+  // 3. Logged in → wrap the page in SideNav. The sidebar provides the
+  //    theme toggle + logout, so no fixed-corner ThemeToggle here.
   return (
-    <>
-      <ThemeToggle />
-      {page}
-    </>
+    <SideNav>
+      <Profile />
+    </SideNav>
   );
 }
 

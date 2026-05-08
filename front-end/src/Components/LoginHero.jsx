@@ -1,22 +1,30 @@
 /**
  * Components/LoginHero.jsx
- * Sleek, Apple-flavored login layout. Two panels share a soft white
- * gradient and meet at a 1px black divider. Stacks vertically below
- * 900px (MUI's `md` breakpoint) and the panel divider re-orients
- * itself horizontally automatically because we pass it as Stack's
- * `divider` prop.
+ * "Spotlight" cursor-reveal login — a literal play on the app name.
  *
- * The PKCE OAuth flow lives in useSpotifyAuth; the button here just
- * calls login() and the rest of the redirect-back happens in
- * Pages/Callback.jsx.
+ * The page is near-black. As the cursor moves, a soft warm-white beam
+ * follows it, and the welcome heading + subtitle are revealed only
+ * where the beam touches them (CSS mask using a radial-gradient at the
+ * cursor position). The Spotify mark and login button stay faintly
+ * visible (~40% opacity) at all times so the user always knows where
+ * to click; they brighten to full on hover.
+ *
+ * The effect is driven by two CSS variables (--mouse-x, --mouse-y)
+ * updated on mousemove. No animation library — setting CSS variables
+ * doesn't trigger React re-renders, so the runtime cost is ~free.
+ *
+ * Falls back to a static, fully-visible layout on touch devices and
+ * when prefers-reduced-motion: reduce is set.
+ *
+ * The PKCE OAuth flow lives in useSpotifyAuth; the button just calls
+ * login() and the rest happens in Pages/Callback.jsx.
  */
 
+import { useEffect, useRef } from 'react';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { useSpotifyAuth } from '../Authorization/useSpotifyAuth';
 
-// Inline Spotify SVG — the recognizable three-arc "S" mark in Spotify
-// green. Kept inline because it's only used here for now; promote to
-// its own Components/SpotifyLogo.jsx if a second caller appears.
+// Inline Spotify SVG — recognizable three-arc mark in Spotify green.
 function SpotifyLogo({ size = 88 }) {
     return (
         <svg
@@ -32,110 +40,152 @@ function SpotifyLogo({ size = 88 }) {
     );
 }
 
-// Apple's near-black + subdued grey, lifted from the apple.com style.
-const APPLE_NEAR_BLACK = '#1d1d1f';
-const APPLE_SUBTLE_GREY = '#6e6e73';
+// Mask applied to the revealed text. The element renders at full color,
+// but only the area around the cursor is shown (opaque mask). Off touch
+// + prefers-reduced-motion, drop the mask so text is always visible —
+// fully usable, just static.
+const SPOTLIGHT_MASK = {
+    WebkitMaskImage:
+        'radial-gradient(circle 240px at var(--mouse-x) var(--mouse-y), black 0%, transparent 65%)',
+    maskImage:
+        'radial-gradient(circle 240px at var(--mouse-x) var(--mouse-y), black 0%, transparent 65%)',
+    '@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce)': {
+        WebkitMaskImage: 'none',
+        maskImage: 'none',
+    },
+};
+
+// Faded-by-default, brightens-on-hover. Used by the Spotify mark + button
+// so they're always discoverable but feel "in shadow" until reached for.
+const FADED_INTERACTIVE = {
+    opacity: 0.4,
+    transition: 'opacity 200ms ease',
+    '&:hover': { opacity: 1 },
+};
 
 export default function LoginHero() {
     const { login } = useSpotifyAuth();
+    const containerRef = useRef(null);
+
+    // Update CSS vars on mousemove. Direct DOM writes (no React state) so the
+    // browser handles 60fps repaints without triggering re-renders.
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const onMove = (e) => {
+            const r = el.getBoundingClientRect();
+            el.style.setProperty('--mouse-x', `${e.clientX - r.left}px`);
+            el.style.setProperty('--mouse-y', `${e.clientY - r.top}px`);
+        };
+        el.addEventListener('mousemove', onMove);
+        return () => el.removeEventListener('mousemove', onMove);
+    }, []);
 
     return (
-        <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            divider={
-                // Short black line — 1/3 of the viewport on the cross-axis,
-                // centered. Use vh/vw so the size resolves regardless of
-                // parent height (min-height alone doesn't give percentages
-                // a definite value to compute against — they collapse to 0).
-                <Box
-                    sx={{
-                        alignSelf: 'center',
-                        backgroundColor: APPLE_NEAR_BLACK,
-                        width: { xs: '33vw', md: '1px' },
-                        height: { xs: '1px', md: '33vh' },
-                    }}
-                />
-            }
+        <Box
+            ref={containerRef}
+            // Default values place the mask off-screen so masked text starts
+            // fully hidden until the user moves the cursor for the first time.
+            style={{ '--mouse-x': '-9999px', '--mouse-y': '-9999px' }}
             sx={{
+                position: 'relative',
                 minHeight: '100vh',
-                background: 'linear-gradient(135deg, #ffffff 0%, #f5f5f7 100%)',
+                backgroundColor: '#0a0a0a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                cursor: 'crosshair',  // theatrical: the cursor IS the spotlight aim
             }}
         >
-            {/* Left panel: welcome message. Content sits toward the
-                divider with a tighter inner gap than the right panel,
-                centered on mobile when the layout stacks vertically. */}
+            {/* Visible beam — soft warm-white cone tracking the cursor. */}
             <Box
+                aria-hidden
                 sx={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: { xs: 'center', md: 'flex-end' },
-                    py: { xs: 3, md: 4 },
-                    pl: { xs: 3, md: 4 },
-                    pr: { xs: 3, md: 2 },
+                    position: 'absolute',
+                    inset: 0,
+                    pointerEvents: 'none',
+                    background:
+                        'radial-gradient(circle 320px at var(--mouse-x) var(--mouse-y), rgba(255, 240, 220, 0.18), transparent 70%)',
+                    '@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce)': {
+                        display: 'none',
+                    },
                 }}
-            >
-                <Stack spacing={2} sx={{ textAlign: 'center', maxWidth: 520 }}>
-                    <Typography
-                        variant="h1"
-                        component="h1"
-                        sx={{
-                            color: APPLE_NEAR_BLACK,
-                            fontSize: { xs: '2.5rem', md: '3.75rem' },
-                        }}
-                    >
-                        Welcome to Spotlight!
-                    </Typography>
-                    <Typography
-                        variant="h6"
-                        sx={{ color: APPLE_SUBTLE_GREY }}
-                    >
-                        A Karaoke Application Using Spotify API
-                    </Typography>
-                </Stack>
-            </Box>
+            />
 
-            {/* Right panel: Spotify mark + CTA. Mirrors the left panel —
-                content sits toward the divider on desktop, centered on mobile. */}
-            <Box
+            {/* Foreground content, vertically + horizontally centered. */}
+            <Stack
+                spacing={3}
                 sx={{
-                    flex: 1,
-                    display: 'flex',
+                    position: 'relative',
+                    zIndex: 1,
                     alignItems: 'center',
-                    justifyContent: { xs: 'center', md: 'flex-start' },
-                    py: { xs: 3, md: 4 },
-                    pl: { xs: 3, md: 8 },
-                    pr: { xs: 3, md: 2 },
+                    textAlign: 'center',
+                    px: 3,
+                    maxWidth: 640,
                 }}
             >
-                <Stack spacing={3} sx={{ alignItems: 'center' }}>
+                <Typography
+                    variant="h1"
+                    component="h1"
+                    sx={{
+                        color: '#ffffff',
+                        fontSize: { xs: '2.5rem', md: '4rem' },
+                        ...SPOTLIGHT_MASK,
+                    }}
+                >
+                    Welcome to Spotlight!
+                </Typography>
+
+                <Typography
+                    variant="h6"
+                    sx={{ color: '#b3b3b3', ...SPOTLIGHT_MASK }}
+                >
+                    A Karaoke Application Using Spotify API
+                </Typography>
+
+                {/* 1/3-width hairline — always faintly visible, separates text
+                    from the interactive cluster below. */}
+                <Box
+                    sx={{
+                        width: '33%',
+                        height: '1px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                    }}
+                />
+
+                {/* Spotify mark — always faint, brightens on hover. */}
+                <Box sx={FADED_INTERACTIVE}>
                     <SpotifyLogo />
-                    <Button
-                        variant="contained"
-                        size="large"
-                        color="primary"
-                        onClick={login}
-                        sx={{
-                            borderRadius: 999,             // Apple-style pill
-                            px: 5,
-                            py: 1.5,
-                            fontSize: '1rem',
-                            boxShadow: 'none',
-                            transition: 'box-shadow 200ms ease, transform 200ms ease',
-                            '&:hover': {
-                                // Soft Spotify-green glow on hover, Apple-button feel.
-                                boxShadow: '0 8px 24px rgba(29, 185, 84, 0.35)',
-                                transform: 'translateY(-1px)',
-                            },
-                            '&:active': {
-                                transform: 'translateY(0)',
-                            },
-                        }}
-                    >
-                        Login with Spotify
-                    </Button>
-                </Stack>
-            </Box>
-        </Stack>
+                </Box>
+
+                <Button
+                    variant="contained"
+                    size="large"
+                    color="primary"
+                    onClick={login}
+                    sx={{
+                        borderRadius: 999,           // Apple-style pill
+                        px: 5,
+                        py: 1.5,
+                        fontSize: '1rem',
+                        opacity: 0.45,
+                        boxShadow: 'none',
+                        transition:
+                            'opacity 200ms ease, box-shadow 200ms ease, transform 200ms ease',
+                        '&:hover': {
+                            opacity: 1,
+                            boxShadow: '0 8px 24px rgba(29, 185, 84, 0.45)',
+                            transform: 'translateY(-1px)',
+                        },
+                        '&:active': {
+                            transform: 'translateY(0)',
+                        },
+                    }}
+                >
+                    Login with Spotify
+                </Button>
+            </Stack>
+        </Box>
     );
 }

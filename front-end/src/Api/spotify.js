@@ -24,12 +24,23 @@ const authHeader = (token) => ({ Authorization: `Bearer ${token}` });
 
 // Internal GET helper. Throws an Error with `.status` on non-2xx so callers
 // can branch by HTTP code (e.g. 401 = expired token) without parsing strings.
+// Spotify's error responses include `{ error: { status, message } }`, so we
+// surface that `message` in both the thrown Error and a console.error to
+// make debugging from the browser DevTools console easy.
 const get = async (path, token) => {
-    const res = await fetch(`${API_BASE}${path}`, { headers: authHeader(token) });
+    const url = `${API_BASE}${path}`;
+    const res = await fetch(url, { headers: authHeader(token) });
     if (!res.ok) {
-        // Attach status so callers can branch on 401 (token expired) vs other failures
-        const err = new Error(`Spotify ${path} failed: ${res.status}`);
+        let detail = '';
+        try {
+            const body = await res.json();
+            if (body?.error?.message) detail = `: ${body.error.message}`;
+        } catch {
+            // Body wasn't JSON — fall back to bare status code.
+        }
+        const err = new Error(`Spotify ${path} failed (${res.status})${detail}`);
         err.status = res.status;
+        console.error('[spotify]', { url, status: res.status, message: err.message });
         throw err;
     }
     return res.json();

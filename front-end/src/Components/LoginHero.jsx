@@ -1,12 +1,12 @@
 /**
  * Components/LoginHero.jsx
- * Minimal black-and-white login. White background, black text. Each
- * element — heading, subtitle, Spotify mark — shifts to Spotify green
- * on hover. The page reads as monochrome at rest and "blooms" only
- * when you reach for it.
+ * Asymmetric two-column login. Left column stacks the welcome heading,
+ * subtitle, and login button; right column holds the Spotify mark
+ * vertically centered, sitting on a slowly-spinning ring of album-cover
+ * tiles. White canvas, monochrome at rest, Spotify-green on hover for
+ * the text and icon.
  *
- * No cursor effects, no spotlight, no fade-on-default; just text and
- * a CTA on a clean white canvas.
+ * On mobile (<900px) the layout collapses to a single centered column.
  *
  * Auth flow unchanged: useSpotifyAuth.login() kicks off PKCE; the
  * redirect-back is handled by Pages/Callback.jsx.
@@ -17,10 +17,19 @@ import { useSpotifyAuth } from '../Authorization/useSpotifyAuth';
 
 const SPOTIFY_GREEN = '#1DB954';
 
-// Inline Spotify SVG. No fill attribute on the <svg> element — the
-// wrapping Box controls the color via CSS (`fill: currentColor` on the
-// child path) so the icon transitions alongside text on hover.
-function SpotifyLogo({ size = 88 }) {
+// Stable Lorem Picsum URLs — each `seed` maps to a fixed photo, so the
+// wheel shows the same 10 images across reloads. Drop-in replacements for
+// when real album art lands via the Spotify API later.
+const ALBUM_IMAGE_URL = (seed) => `https://picsum.photos/seed/${seed}/200/200`;
+const ALBUM_SEEDS = [
+    'spotlight-1', 'spotlight-2', 'spotlight-3', 'spotlight-4', 'spotlight-5',
+    'spotlight-6', 'spotlight-7', 'spotlight-8', 'spotlight-9', 'spotlight-10',
+];
+
+// Inline Spotify SVG. No fill attribute on the <svg> — the wrapping
+// Box controls the color via CSS (`fill: currentColor` on the path)
+// so the icon transitions alongside text on hover.
+function SpotifyLogo({ size = 140 }) {
     return (
         <svg
             viewBox="0 0 24 24"
@@ -34,8 +43,78 @@ function SpotifyLogo({ size = 88 }) {
     );
 }
 
-// Black at rest, Spotify green on hover. Used by both Typography elements
-// and the Spotify mark. The SVG path inherits via fill: currentColor.
+// Rotating ring of gradient tiles. Each tile is placed on a circle of
+// radius `size/2` using the standard "rotate-translate-counter-rotate"
+// transform pattern. The whole ring spins via @keyframes on the wrapper.
+// Skip the spin entirely under prefers-reduced-motion.
+function AlbumWheel({ size = 340, tileSize = 56, count = ALBUM_SEEDS.length }) {
+    const radius = size / 2;
+    const tiles = Array.from({ length: count }, (_, i) => ({
+        angle: (i / count) * 360,
+        imageUrl: ALBUM_IMAGE_URL(ALBUM_SEEDS[i % ALBUM_SEEDS.length]),
+    }));
+
+    return (
+        <Box
+            aria-hidden
+            sx={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                width: size,
+                height: size,
+                mt: `-${size / 2}px`,
+                ml: `-${size / 2}px`,
+                pointerEvents: 'none',
+                animation: 'albumWheelSpin 40s linear infinite',
+                '@keyframes albumWheelSpin': {
+                    from: { transform: 'rotate(0deg)' },
+                    to: { transform: 'rotate(360deg)' },
+                },
+                '@media (prefers-reduced-motion: reduce)': {
+                    animation: 'none',
+                },
+            }}
+        >
+            {tiles.map((tile, i) => (
+                <Box
+                    key={i}
+                    sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        width: tileSize,
+                        height: tileSize,
+                        mt: `-${tileSize / 2}px`,
+                        ml: `-${tileSize / 2}px`,
+                        borderRadius: 1.5,
+                        overflow: 'hidden',
+                        opacity: 0.85,
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
+                        // Place on the circle: rotate around center, push out
+                        // by `radius`, counter-rotate so the tile starts upright.
+                        transform: `rotate(${tile.angle}deg) translateY(-${radius}px) rotate(-${tile.angle}deg)`,
+                    }}
+                >
+                    <img
+                        src={tile.imageUrl}
+                        alt=""
+                        loading="lazy"
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'block',
+                            objectFit: 'cover',
+                        }}
+                    />
+                </Box>
+            ))}
+        </Box>
+    );
+}
+
+// Black at rest, Spotify green on hover. Used on Typography and the
+// SpotifyLogo wrapper. The SVG path inherits via fill: currentColor.
 const HOVER_TO_GREEN = {
     color: '#000',
     transition: 'color 200ms ease',
@@ -54,61 +133,82 @@ export default function LoginHero() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                px: 3,
+                px: { xs: 3, md: 8 },
+                py: 4,
             }}
         >
             <Stack
-                spacing={3}
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={{ xs: 4, md: 8 }}
                 sx={{
                     alignItems: 'center',
-                    textAlign: 'center',
-                    maxWidth: 640,
+                    maxWidth: 1100,
+                    width: '100%',
                 }}
             >
-                <Typography
-                    variant="h1"
-                    component="h1"
+                {/* Left column: heading + subtitle + login button. */}
+                <Stack
+                    spacing={3}
                     sx={{
-                        fontSize: { xs: '2.5rem', md: '4rem' },
-                        ...HOVER_TO_GREEN,
+                        flex: 1,
+                        alignItems: { xs: 'center', md: 'flex-start' },
+                        textAlign: { xs: 'center', md: 'left' },
                     }}
                 >
-                    Welcome to Spotlight!
-                </Typography>
+                    <Typography
+                        variant="h1"
+                        component="h1"
+                        sx={{
+                            fontSize: { xs: '2.5rem', md: '4.5rem' },
+                            // Layered grey "ghost echo" behind the heading —
+                            // reads like a printed music poster.
+                            textShadow:
+                                '6px 6px 0 rgba(0, 0, 0, 0.10), 14px 14px 0 rgba(0, 0, 0, 0.05)',
+                            ...HOVER_TO_GREEN,
+                        }}
+                    >
+                        Welcome to Spotlight!
+                    </Typography>
 
-                <Typography variant="h6" sx={HOVER_TO_GREEN}>
-                    A Karaoke Application Using Spotify API
-                </Typography>
+                    <Typography variant="h6" sx={HOVER_TO_GREEN}>
+                        A Karaoke Application Using Spotify API
+                    </Typography>
 
-                {/* Hairline divider — black at low opacity on white. */}
+                    <Button
+                        variant="contained"
+                        size="large"
+                        color="primary"
+                        onClick={login}
+                        sx={{
+                            borderRadius: 999,
+                            px: 5,
+                            py: 1.5,
+                            fontSize: '1rem',
+                            boxShadow: 'none',
+                            mt: 1,
+                            '&:hover': { boxShadow: 'none' },
+                        }}
+                    >
+                        Login with Spotify
+                    </Button>
+                </Stack>
+
+                {/* Right column: Spotify mark on a rotating album wheel. */}
                 <Box
                     sx={{
-                        width: '33%',
-                        height: '1px',
-                        backgroundColor: 'rgba(0, 0, 0, 0.15)',
-                    }}
-                />
-
-                <Box sx={HOVER_TO_GREEN}>
-                    <SpotifyLogo />
-                </Box>
-
-                <Button
-                    variant="contained"
-                    size="large"
-                    color="primary"
-                    onClick={login}
-                    sx={{
-                        borderRadius: 999,
-                        px: 5,
-                        py: 1.5,
-                        fontSize: '1rem',
-                        boxShadow: 'none',
-                        '&:hover': { boxShadow: 'none' },
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',  // anchor for the absolutely-positioned wheel
+                        minHeight: 380,         // give the wheel room
                     }}
                 >
-                    Login with Spotify
-                </Button>
+                    <AlbumWheel size={340} tileSize={56} count={10} />
+                    <Box sx={{ ...HOVER_TO_GREEN, position: 'relative', zIndex: 1 }}>
+                        <SpotifyLogo size={140} />
+                    </Box>
+                </Box>
             </Stack>
         </Box>
     );

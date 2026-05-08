@@ -13,6 +13,7 @@ import Profile from './Pages/Profile';
 import Search from './Pages/Search';
 import ThemeToggle from './Components/ThemeToggle';
 import SideNav from './Components/SideNav';
+import NowPlayingBar from './Components/NowPlayingBar';
 import PlayerProvider from './Player/PlayerProvider';
 import { getToken } from './Authorization/tokenStorage';
 
@@ -54,10 +55,13 @@ function App() {
 
   // PlayerProvider initializes the Spotify Web Playback SDK and exposes
   // playback state/controls via PlayerContext. Anonymous routes don't
-  // wrap in it (no token to feed the SDK with).
+  // wrap in it (no token to feed the SDK with). NowPlayingBar is a
+  // sibling of SideNav so it persists across page navigations and is
+  // self-hidden until a track plays.
   return (
     <PlayerProvider>
       <SideNav>{page}</SideNav>
+      <NowPlayingBar />
     </PlayerProvider>
   );
 }

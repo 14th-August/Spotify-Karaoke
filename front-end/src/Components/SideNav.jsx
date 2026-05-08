@@ -361,8 +361,16 @@ export default function SideNav({ children }) {
 
             {/* Main page content. Shifts over by the rail's collapsed width
                 on desktop so the sidebar's expansion overlays content rather
-                than reflowing it. */}
-            <Box sx={{ ml: { xs: 0, md: `${COLLAPSED_WIDTH}px` }, minHeight: '100vh' }}>
+                than reflowing it. The 96px bottom padding ensures that the
+                fixed NowPlayingBar (80px tall) doesn't cover the last row
+                of any scrolling page. */}
+            <Box
+                sx={{
+                    ml: { xs: 0, md: `${COLLAPSED_WIDTH}px` },
+                    minHeight: '100vh',
+                    pb: '96px',
+                }}
+            >
                 {children}
             </Box>
 

@@ -65,7 +65,11 @@ export const useSpotifyAuth = () => {
             state: state,
             code_challenge_method: 'S256',
             code_challenge: codeChallenge,
-            scope: 'user-read-private user-read-email'
+            // streaming + playback-state scopes are required for the Web
+            // Playback SDK (full-track playback in the browser). After this
+            // line changes, users must log out + log back in for Spotify
+            // to re-prompt and grant the new permissions.
+            scope: 'user-read-private user-read-email streaming user-read-playback-state user-modify-playback-state'
         });
 
         // Redirect to Spotify

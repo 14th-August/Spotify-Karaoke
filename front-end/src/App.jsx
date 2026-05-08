@@ -13,6 +13,7 @@ import Profile from './Pages/Profile';
 import Search from './Pages/Search';
 import ThemeToggle from './Components/ThemeToggle';
 import SideNav from './Components/SideNav';
+import PlayerProvider from './Player/PlayerProvider';
 import { getToken } from './Authorization/tokenStorage';
 
 function App() {
@@ -51,7 +52,14 @@ function App() {
     page = <Profile />;
   }
 
-  return <SideNav>{page}</SideNav>;
+  // PlayerProvider initializes the Spotify Web Playback SDK and exposes
+  // playback state/controls via PlayerContext. Anonymous routes don't
+  // wrap in it (no token to feed the SDK with).
+  return (
+    <PlayerProvider>
+      <SideNav>{page}</SideNav>
+    </PlayerProvider>
+  );
 }
 
 export default App;

@@ -14,8 +14,9 @@
  * existing ThemeModeContext.
  */
 
-import { useContext, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {
+    Avatar,
     Box,
     Divider,
     Drawer,
@@ -35,7 +36,8 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import MenuIcon from '@mui/icons-material/Menu';
 
 import { ThemeModeContext } from '../themeMode';
-import { clearToken } from '../Authorization/tokenStorage';
+import { getToken, clearToken } from '../Authorization/tokenStorage';
+import { getCurrentUser } from '../Api/spotify';
 
 const COLLAPSED_WIDTH = 64;
 const EXPANDED_WIDTH = 240;
@@ -144,6 +146,26 @@ export default function SideNav({ children }) {
     const { mode, toggle: toggleMode } = useContext(ThemeModeContext);
     const [toastMsg, setToastMsg] = useState(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
+    const [user, setUser] = useState(null);
+
+    // Fetch the linked Spotify profile for the brand avatar. Same /me
+    // endpoint Profile.jsx hits — browsers usually serve the duplicate
+    // request from cache. On any failure (including 401) we silently
+    // keep the sparkle fallback; Profile.jsx will catch a real auth
+    // problem and bounce home.
+    useEffect(() => {
+        const token = getToken();
+        if (!token) return;
+        let cancelled = false;
+        getCurrentUser(token)
+            .then((data) => {
+                if (!cancelled) setUser(data);
+            })
+            .catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const showComingSoon = (label) => {
         setToastMsg(`${label} — coming soon`);
@@ -156,11 +178,12 @@ export default function SideNav({ children }) {
     };
 
     const isDark = mode === 'dark';
+    const avatarUrl = user?.images?.[0]?.url;
 
     // The shared nav body — same JSX in the desktop rail and the mobile drawer.
     const navContent = (
         <Stack sx={{ height: '100%', overflow: 'hidden' }}>
-            {/* Brand row */}
+            {/* Brand row — Spotify avatar (or sparkle fallback) + app name. */}
             <Box
                 sx={{
                     display: 'flex',
@@ -171,7 +194,36 @@ export default function SideNav({ children }) {
                     flexShrink: 0,
                 }}
             >
-                <Box sx={{ flexShrink: 0, color: 'primary.main', fontSize: 22, lineHeight: 1 }}>✦</Box>
+                {avatarUrl ? (
+                    <Avatar
+                        src={avatarUrl}
+                        alt={user?.display_name || 'Spotify avatar'}
+                        sx={{
+                            width: 32,
+                            height: 32,
+                            flexShrink: 0,
+                            border: '2px solid',
+                            borderColor: 'primary.main',
+                        }}
+                    />
+                ) : (
+                    <Box
+                        aria-hidden
+                        sx={{
+                            flexShrink: 0,
+                            color: 'primary.main',
+                            fontSize: 22,
+                            lineHeight: 1,
+                            width: 32,
+                            height: 32,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        ✦
+                    </Box>
+                )}
                 <Typography
                     data-nav-label
                     sx={{

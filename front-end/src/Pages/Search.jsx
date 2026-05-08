@@ -38,9 +38,17 @@ import { searchTracks } from '../Api/spotify';
 import { getToken, clearToken } from '../Authorization/tokenStorage';
 
 const DEBOUNCE_MS = 300;
-// Spotify's documented default; some newer dev apps reject other
-// integers (we hit `Invalid limit` on 25). 20 is reliably accepted.
-const RESULT_LIMIT = 20;
+// Spotify rejects larger values on this dev app with a misleading
+// "Invalid limit" error; 10 is well under any tier's cap.
+const RESULT_LIMIT = 10;
+// Don't fire the search until the (sanitized) query is at least this
+// many characters — Spotify rejects very short queries on some endpoints.
+const MIN_QUERY_LENGTH = 2;
+
+// Normalize Unicode (so visually-identical glyphs encode the same way)
+// and trim outer whitespace. Anything that arrives via paste/IME/keyboard
+// goes through here before hitting the API.
+const sanitizeQuery = (raw) => raw.normalize('NFC').trim();
 
 export default function Search() {
     const [query, setQuery] = useState('');
@@ -60,7 +68,8 @@ export default function Search() {
     // case — the render below derives the empty state from `query`
     // directly, so stale `results` aren't shown.
     useEffect(() => {
-        if (!query.trim()) return;
+        const sanitized = sanitizeQuery(query);
+        if (sanitized.length < MIN_QUERY_LENGTH) return;
 
         const token = getToken();
         if (!token) {
@@ -72,7 +81,7 @@ export default function Search() {
         const timer = setTimeout(() => {
             setLoading(true);
             setError(null);
-            searchTracks(token, query, RESULT_LIMIT)
+            searchTracks(token, sanitized, RESULT_LIMIT)
                 .then((data) => {
                     if (cancelled) return;
                     setResults(data.tracks?.items || []);

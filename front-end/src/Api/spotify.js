@@ -79,8 +79,17 @@ export const getSavedTracks = (token, limit = 50) =>
 export const getPlaylists = (token) => get('/me/playlists', token);
 
 // GET /search — track search by free-text query, sorted by Spotify relevance.
-export const searchTracks = (token, q, limit = 10) =>
-    get(`/search?q=${encodeURIComponent(q)}&type=track&limit=${limit}`, token);
+// Uses URLSearchParams so each param is encoded per
+// application/x-www-form-urlencoded rules (more forgiving than manual
+// string concatenation when the query has special chars).
+export const searchTracks = (token, q, limit = 10) => {
+    const params = new URLSearchParams({
+        q,
+        type: 'track',
+        limit: String(limit),
+    });
+    return get(`/search?${params.toString()}`, token);
+};
 
 // GET /tracks/{id} — full metadata for a single track.
 export const getTrack = (token, trackId) => get(`/tracks/${trackId}`, token);

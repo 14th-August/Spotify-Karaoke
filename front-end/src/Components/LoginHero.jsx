@@ -1,10 +1,10 @@
 /**
  * Components/LoginHero.jsx
  * Asymmetric two-column login. Left column stacks the welcome heading,
- * subtitle, and login button; right column holds the Spotify mark
- * vertically centered, sitting on a slowly-spinning ring of album-cover
- * tiles. White canvas, monochrome at rest, Spotify-green on hover for
- * the text and icon.
+ * subtitle, and login button; right column holds the Spotify mark on a
+ * slowly-spinning ring of album-cover-style images. Theme-aware: text
+ * and background follow the active light/dark palette, only the
+ * Spotify-green hover stays constant.
  *
  * On mobile (<900px) the layout collapses to a single centered column.
  *
@@ -43,7 +43,7 @@ function SpotifyLogo({ size = 140 }) {
     );
 }
 
-// Rotating ring of gradient tiles. Each tile is placed on a circle of
+// Rotating ring of image tiles. Each tile is placed on a circle of
 // radius `size/2` using the standard "rotate-translate-counter-rotate"
 // transform pattern. The whole ring spins via @keyframes on the wrapper.
 // Skip the spin entirely under prefers-reduced-motion.
@@ -113,10 +113,10 @@ function AlbumWheel({ size = 340, tileSize = 56, count = ALBUM_SEEDS.length }) {
     );
 }
 
-// Black at rest, Spotify green on hover. Used on Typography and the
-// SpotifyLogo wrapper. The SVG path inherits via fill: currentColor.
+// Theme-aware: resting color follows text.primary so it inverts cleanly
+// between light and dark modes; hover always shifts to Spotify green.
 const HOVER_TO_GREEN = {
-    color: '#000',
+    color: 'text.primary',
     transition: 'color 200ms ease',
     '& svg': { fill: 'currentColor' },
     '&:hover': { color: SPOTIFY_GREEN },
@@ -129,7 +129,7 @@ export default function LoginHero() {
         <Box
             sx={{
                 minHeight: '100vh',
-                backgroundColor: '#ffffff',
+                bgcolor: 'background.default',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -158,14 +158,19 @@ export default function LoginHero() {
                     <Typography
                         variant="h1"
                         component="h1"
-                        sx={{
+                        sx={(theme) => ({
                             fontSize: { xs: '2.5rem', md: '4.5rem' },
-                            // Layered grey "ghost echo" behind the heading —
-                            // reads like a printed music poster.
+                            color: 'text.primary',
+                            transition: 'color 200ms ease',
+                            '&:hover': { color: SPOTIFY_GREEN },
+                            // Layered ghost-echo behind the heading. Inverts
+                            // between modes so it's always faint-but-visible
+                            // against the page background.
                             textShadow:
-                                '6px 6px 0 rgba(0, 0, 0, 0.10), 14px 14px 0 rgba(0, 0, 0, 0.05)',
-                            ...HOVER_TO_GREEN,
-                        }}
+                                theme.palette.mode === 'dark'
+                                    ? '6px 6px 0 rgba(255, 255, 255, 0.10), 14px 14px 0 rgba(255, 255, 255, 0.05)'
+                                    : '6px 6px 0 rgba(0, 0, 0, 0.10), 14px 14px 0 rgba(0, 0, 0, 0.05)',
+                        })}
                     >
                         Welcome to Spotlight!
                     </Typography>

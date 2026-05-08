@@ -1,58 +1,60 @@
 /**
  * theme.js
- * Spotify-flavored MUI theme. Wired up in main.jsx via <ThemeProvider>,
- * so any component can pull from this palette using:
- *   - the `sx` prop:    sx={{ color: 'primary.main' }}
- *   - or the hook:      const theme = useTheme()
+ * Spotify-flavored MUI theme with a dialed.gg-inspired typography (Inter,
+ * weight 500, tight tracking). Exports a `makeTheme(mode)` factory so the
+ * app can switch between dark and light at runtime; `default` export is
+ * the dark theme for back-compat in case anything imports it.
  *
- * Typography goes for a music-poster feel:
- *   - Bebas Neue (condensed all-caps display) on h1/h2/h3 — concert-poster
- *     energy, the kind of type you see on album covers and venue marquees.
- *   - Outfit (modern geometric sans) for body, buttons, smaller headings —
- *     clean, contemporary, complements Bebas's condensed feel.
- *   - Buttons keep their original casing (no automatic uppercase).
+ * Single font everywhere — same approach as dialed.gg, who use Suisse Intl
+ * for everything (with Inter as fallback). We use Inter as primary since
+ * Suisse Intl is paid commercial.
  *
- * Fonts are loaded via Google Fonts in index.css.
+ * Wired up in main.jsx via <ThemeProvider>; consumers reach the palette
+ * via the `sx` prop or the `useTheme()` hook.
  */
 
 import { createTheme } from '@mui/material/styles';
 
-const DISPLAY_FONT_STACK =
-    '"Fredoka", "Nunito", "Quicksand", -apple-system, BlinkMacSystemFont, sans-serif';
-const BODY_FONT_STACK =
-    '"Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
+const FONT_STACK =
+    '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif';
 
-const theme = createTheme({
+export const makeTheme = (mode = 'dark') => createTheme({
     palette: {
-        mode: 'dark',
-        // Spotify brand green — used for the primary CTA, avatar borders, etc.
+        mode,
+        // Spotify brand green — used for the primary CTA, hover accents, etc.
         primary: { main: '#1DB954' },
-        background: {
-            default: '#121212',  // page background
-            paper: '#181818',    // cards / surfaces
-        },
+        ...(mode === 'dark'
+            ? {
+                  background: { default: '#121212', paper: '#181818' },
+                  text: { primary: '#ffffff', secondary: '#b3b3b3' },
+              }
+            : {
+                  background: { default: '#ffffff', paper: '#f5f5f7' },
+                  text: { primary: '#000000', secondary: '#6e6e73' },
+              }),
     },
     shape: { borderRadius: 12 },
     typography: {
-        // Default for everything (body, buttons, h5, h6).
-        fontFamily: BODY_FONT_STACK,
-        // Display headings — Fredoka has multiple weights; use 700 for
-        // strong display presence. Slight negative tracking pulls the
-        // rounded glyphs together for a tighter heading feel.
-        h1: { fontFamily: DISPLAY_FONT_STACK, fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1.05 },
-        h2: { fontFamily: DISPLAY_FONT_STACK, fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1.08 },
-        h3: { fontFamily: DISPLAY_FONT_STACK, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.1 },
+        fontFamily: FONT_STACK,
+        // Inter at 600 reads as a confident heading without feeling
+        // shouty. Slight negative tracking (Apple/dialed/Linear-style)
+        // pulls letters together for a tighter modern feel.
+        h1: { fontWeight: 600, letterSpacing: '-0.022em', lineHeight: 1.05 },
+        h2: { fontWeight: 600, letterSpacing: '-0.022em', lineHeight: 1.08 },
+        h3: { fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.1 },
         h4: { fontWeight: 600, letterSpacing: '-0.015em' },
         h5: { fontWeight: 600, letterSpacing: '-0.01em' },
         h6: { fontWeight: 500, letterSpacing: '-0.005em' },
-        body1: { letterSpacing: '-0.003em' },
-        body2: { letterSpacing: '-0.003em' },
+        body1: { fontWeight: 400, letterSpacing: '-0.005em' },
+        body2: { fontWeight: 400, letterSpacing: '-0.005em' },
         button: {
-            fontWeight: 600,
-            letterSpacing: '0.01em',
-            textTransform: 'none',  // keep button labels in their original case
+            fontWeight: 500,
+            letterSpacing: '-0.005em',
+            textTransform: 'none',  // Apple/dialed-style: keep button labels in their original case
         },
     },
 });
 
-export default theme;
+// Default export kept for back-compat. Prefer importing `makeTheme` and
+// calling it with the active mode.
+export default makeTheme('dark');

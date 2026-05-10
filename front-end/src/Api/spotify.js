@@ -107,6 +107,21 @@ export const searchTracks = (token, q, limit = 10) => {
 // GET /tracks/{id} — full metadata for a single track.
 export const getTrack = (token, trackId) => get(`/tracks/${trackId}`, token);
 
+// GET /audio-analysis/{id} — Spotify's pre-computed audio analysis:
+// bars, beats, tatums, sections, segments (with 12-bin chroma + timbre
+// vectors), plus track-level tempo/key/loudness. Restricted endpoint
+// for apps registered after Nov 2024 — returns 403 unless the app has
+// Extended Quota Mode approval.
+export const getAudioAnalysis = (token, trackId) =>
+    get(`/audio-analysis/${trackId}`, token);
+
+// GET /audio-features/{id} — high-level numeric features for a track
+// (danceability, energy, valence, acousticness, instrumentalness,
+// liveness, speechiness, plus tempo/key/mode/time_signature). Same
+// restricted-endpoint status as audio-analysis above.
+export const getAudioFeatures = (token, trackId) =>
+    get(`/audio-features/${trackId}`, token);
+
 // --- Player control ---
 // All require the `streaming` + `user-modify-playback-state` scopes and
 // a Spotify Premium account. Most return 204 No Content on success.

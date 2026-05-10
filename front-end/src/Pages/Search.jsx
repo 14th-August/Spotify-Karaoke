@@ -5,16 +5,18 @@
  * https://developer.spotify.com/documentation/web-api/reference/search).
  *
  * Each result row shows the album cover, track name, artists, album,
- * and a play/pause button. Playback uses each track's `preview_url` —
- * a free 30-second MP3 from Spotify's CDN that works for any user
- * (Free or Premium). For full-track playback we'd need the Web
- * Playback SDK + a Premium account; deferred for later.
+ * and a play/pause button. Two playback paths:
+ *   - Web Playback SDK (Premium accounts) — full-track playback in the
+ *     browser. Primary path; uses PlayerContext.playUri / togglePlay.
+ *     The NowPlayingBar renders elsewhere with full transport controls.
+ *   - preview_url (any account) — fallback 30-second MP3 from Spotify's
+ *     CDN. Used when the SDK isn't ready or the account isn't Premium.
  *
  * Failure modes mirror Profile.jsx: 401 → clearToken + bounce home;
  * other errors → render an inline Alert.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import {
     Alert,
     Avatar,
@@ -36,6 +38,7 @@ import MusicOffIcon from '@mui/icons-material/MusicOff';
 
 import { searchTracks } from '../Api/spotify';
 import { getToken, clearToken } from '../Authorization/tokenStorage';
+import { PlayerContext } from '../Player/PlayerContext';
 
 const DEBOUNCE_MS = 300;
 // Spotify rejects larger values on this dev app with a misleading
@@ -56,17 +59,18 @@ export default function Search() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Single-source-of-truth for the currently playing track. The audio
-    // element itself lives in a ref so we can pause/replace without
-    // triggering re-renders mid-playback.
-    const [playingId, setPlayingId] = useState(null);
+    // Preview-URL playback state. Distinct from SDK playback, which is
+    // owned by PlayerContext / NowPlayingBar.
+    const [playingPreviewId, setPlayingPreviewId] = useState(null);
     const audioRef = useRef(null);
 
+    const { state, isReady, isPremium, playUri, togglePlay } = useContext(PlayerContext);
+    const sdkCurrentTrackId = state?.track_window?.current_track?.id;
+    const sdkIsPlaying = !state?.paused;
+    const hasFullPlayback = isReady && isPremium;
+
     // Debounced search-as-you-type. Cancels in-flight fetches via the
-    // setTimeout cleanup on each keystroke. We deliberately do NOT call
-    // setState synchronously in the effect body for the empty-query
-    // case — the render below derives the empty state from `query`
-    // directly, so stale `results` aren't shown.
+    // setTimeout cleanup on each keystroke.
     useEffect(() => {
         const sanitized = sanitizeQuery(query);
         if (sanitized.length < MIN_QUERY_LENGTH) return;
@@ -89,7 +93,6 @@ export default function Search() {
                 .catch((err) => {
                     if (cancelled) return;
                     if (err.status === 401) {
-                        // Token expired or revoked — Profile.jsx pattern.
                         clearToken();
                         window.location.assign('/');
                         return;
@@ -98,9 +101,6 @@ export default function Search() {
                     setResults([]);
                 })
                 .finally(() => {
-                    // Always reset loading, even if cancelled, so the
-                    // spinner can't get stuck on after the user clears
-                    // the input mid-flight.
                     setLoading(false);
                 });
         }, DEBOUNCE_MS);
@@ -111,7 +111,8 @@ export default function Search() {
         };
     }, [query]);
 
-    // Stop any in-flight playback when navigating away.
+    // Stop any in-flight preview audio when navigating away. SDK playback
+    // persists across the navigation (it lives in PlayerProvider).
     useEffect(() => {
         return () => {
             if (audioRef.current) {
@@ -121,16 +122,36 @@ export default function Search() {
         };
     }, []);
 
-    const handlePlayToggle = (track) => {
-        // Pause whatever is currently playing.
+    const handlePlayToggle = async (track) => {
+        // Web Playback SDK is the primary path when available.
+        if (hasFullPlayback) {
+            // Stop any preview that's currently playing — only one
+            // playback source at a time.
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+                setPlayingPreviewId(null);
+            }
+
+            // If this track is already loaded in the SDK, just toggle.
+            if (sdkCurrentTrackId === track.id) {
+                togglePlay();
+                return;
+            }
+
+            // Different track (or nothing playing) — start it from the top.
+            await playUri(track.uri);
+            return;
+        }
+
+        // Fallback: preview-URL playback (works without Premium).
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current = null;
         }
 
-        // Click on the currently playing track = stop.
-        if (playingId === track.id) {
-            setPlayingId(null);
+        if (playingPreviewId === track.id) {
+            setPlayingPreviewId(null);
             return;
         }
 
@@ -138,16 +159,15 @@ export default function Search() {
 
         const audio = new Audio(track.preview_url);
         audio.addEventListener('ended', () => {
-            setPlayingId((current) => (current === track.id ? null : current));
+            setPlayingPreviewId((current) => (current === track.id ? null : current));
             audioRef.current = null;
         });
         audio.play().catch(() => {
-            // Autoplay blocked or network error — bail quietly.
-            setPlayingId(null);
+            setPlayingPreviewId(null);
             audioRef.current = null;
         });
         audioRef.current = audio;
-        setPlayingId(track.id);
+        setPlayingPreviewId(track.id);
     };
 
     return (
@@ -156,7 +176,9 @@ export default function Search() {
                 Search
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-                Find a track on Spotify and preview the first 30 seconds.
+                {hasFullPlayback
+                    ? 'Find a track and play it in full — uses the Spotify Web Playback SDK.'
+                    : 'Find a track and preview the first 30 seconds.'}
             </Typography>
 
             <TextField
@@ -201,10 +223,25 @@ export default function Search() {
 
             <List sx={{ p: 0 }}>
                 {query.trim() && results.map((track) => {
-                    const isPlaying = playingId === track.id;
+                    const isSdkPlayingThis =
+                        hasFullPlayback && sdkCurrentTrackId === track.id && sdkIsPlaying;
+                    const isPreviewingThis = playingPreviewId === track.id;
+                    const isPlaying = isSdkPlayingThis || isPreviewingThis;
                     const hasPreview = Boolean(track.preview_url);
+                    const canPlay = hasFullPlayback || hasPreview;
                     const cover = track.album?.images?.[0]?.url;
                     const artistNames = (track.artists || []).map((a) => a.name).join(', ');
+
+                    let tooltip;
+                    if (!canPlay) {
+                        tooltip = 'No preview available for this track';
+                    } else if (isPlaying) {
+                        tooltip = 'Pause';
+                    } else if (hasFullPlayback) {
+                        tooltip = 'Play full track';
+                    } else {
+                        tooltip = 'Play 30s preview';
+                    }
 
                     return (
                         <ListItem
@@ -249,22 +286,13 @@ export default function Search() {
                                     {artistNames} · {track.album?.name}
                                 </Typography>
                             </Stack>
-                            <Tooltip
-                                title={
-                                    hasPreview
-                                        ? isPlaying
-                                            ? 'Pause preview'
-                                            : 'Play 30s preview'
-                                        : 'No preview available for this track'
-                                }
-                                arrow
-                            >
+                            <Tooltip title={tooltip} arrow>
                                 {/* Wrap disabled IconButton in a span so the
                                     Tooltip still fires on hover. */}
                                 <span>
                                     <IconButton
                                         onClick={() => handlePlayToggle(track)}
-                                        disabled={!hasPreview}
+                                        disabled={!canPlay}
                                         sx={{
                                             color: isPlaying ? 'primary.main' : 'text.primary',
                                         }}
@@ -272,7 +300,7 @@ export default function Search() {
                                             isPlaying ? `Pause ${track.name}` : `Play ${track.name}`
                                         }
                                     >
-                                        {!hasPreview ? (
+                                        {!canPlay ? (
                                             <MusicOffIcon />
                                         ) : isPlaying ? (
                                             <PauseIcon />

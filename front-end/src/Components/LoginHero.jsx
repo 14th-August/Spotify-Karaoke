@@ -256,7 +256,7 @@ export default function LoginHero() {
                     </Typography>
 
                     <Typography variant="h6" sx={HOVER_TO_GREEN}>
-                        A Karaoke Application Using Spotify API
+                        Sing your favorite spotify songs like it's Karaoke night!
                     </Typography>
 
                     <Button

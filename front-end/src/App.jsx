@@ -11,6 +11,7 @@ import Login from './Pages/Login';
 import Callback from './Pages/Callback';
 import Profile from './Pages/Profile';
 import Search from './Pages/Search';
+import Karaoke from './Pages/Karaoke';
 import ThemeToggle from './Components/ThemeToggle';
 import SideNav from './Components/SideNav';
 import NowPlayingBar from './Components/NowPlayingBar';
@@ -49,6 +50,9 @@ function App() {
   let page;
   if (path.startsWith('/search')) {
     page = <Search />;
+  } else if (path.startsWith('/karaoke/')) {
+    const trackId = path.split('/karaoke/')[1];
+    page = <Karaoke trackId={trackId} />;
   } else {
     page = <Profile />;
   }

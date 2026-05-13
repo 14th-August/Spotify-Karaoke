@@ -35,6 +35,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import MusicOffIcon from '@mui/icons-material/MusicOff';
+import MicIcon from '@mui/icons-material/Mic';
 
 import { searchTracks } from '../Api/spotify';
 import { getToken, clearToken } from '../Authorization/tokenStorage';
@@ -309,6 +310,15 @@ export default function Search() {
                                         )}
                                     </IconButton>
                                 </span>
+                            </Tooltip>
+                            <Tooltip title="Karaoke" arrow>
+                                <IconButton
+                                    onClick={() => window.location.assign(`/karaoke/${track.id}`)}
+                                    aria-label={`Karaoke — ${track.name}`}
+                                    sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
+                                >
+                                    <MicIcon fontSize="small" />
+                                </IconButton>
                             </Tooltip>
                         </ListItem>
                     );

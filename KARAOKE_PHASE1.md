@@ -8,7 +8,9 @@ modern karaoke machine.
 ## Status
 
 - ✅ **Phase 1** — Lyrics karaoke (rhythm scoring only)
-- ✅ **Bonus** — Pre-song intro splash + 3-2-1-SING countdown (added beyond the original plan)
+- ✅ **Bonus 1** — Pre-song intro splash + 3-2-1-SING countdown
+- ✅ **Bonus 2** — Japanese-karaoke-style pitch trail (visual layer; placeholder expected pitches until Phase 2 backend lands)
+- ✅ **Bonus 3** — Lyrics show one line at a time (current line large + next 2 faded)
 - ⏳ Phase 2 — Backend pitch pipeline (not started)
 - ⏳ Phase 3 — Pitch scoring on frontend (not started)
 - ⏳ Phase 4 — Coverage expansion + UX polish (not started)
@@ -45,10 +47,11 @@ permission is already settled and lyrics are usually loaded. Playback
 |---|---|
 | `Api/lyrics.js` | LRClib client. Parses LRC `[mm:ss.xx]` timestamps into `{ time_ms, text }` lines. |
 | `Audio/useMicrophone.js` | Hook around `getUserMedia({ audio: true })`. Releases the stream on unmount. |
-| `Audio/useVAD.js` | Voice-activity detection. RMS over 100 ms windows from a Web Audio `AnalyserNode`. |
-| `Components/LyricsPanel.jsx` | Auto-scrolling lyrics, active line highlighted + scaled. |
+| `Audio/usePitchDetector.js` | Time-domain autocorrelation pitch detection + RMS / VAD in one AudioContext. Returns `{ pitch, confidence, rms, isVoiceActive, featuresRef }`. |
+| `Components/LyricsPanel.jsx` | Karaoke-style line display — current line large, next 2 lines faded. |
 | `Components/MicMeter.jsx` | Vertical RMS bar + mic-state tooltip. |
 | `Components/ScoringDisplay.jsx` | Score (0–100) + chip strip of last 8 line results. |
+| `Components/PitchTrail.jsx` | Canvas-based scrolling pitch band — expected-pitch bars + glowing user pitch ball + trail. |
 | `Components/KaraokeIntro.jsx` | Pre-song splash: cover, title, readiness badges, Start button. |
 | `Components/KaraokeCountdown.jsx` | 3-2-1-SING animation. |
 | `Pages/Karaoke.jsx` | The whole karaoke flow — phase machine, scoring loop, render branches. |
@@ -83,6 +86,66 @@ permission is already settled and lyrics are usually loaded. Playback
   - **SING!** — 7 rem, no subtext, `goPulse` keyframe (scale 0.6 → 1.25 → 1.1).
 - Total duration: 3 × 1000 ms + 500 ms = **3.5 s**.
 - `<Box key={value}>` forces a remount on each tick so the keyframe re-runs cleanly per digit.
+
+## Pitch trail (visualization only — scoring still rhythm-based)
+
+`Components/PitchTrail.jsx`
+
+A Japanese-karaoke-style scrolling band rendered on a `<canvas>` at the
+top of the playing layout. Three layers, drawn at 60 fps inside a
+`requestAnimationFrame` loop:
+
+1. **Expected-pitch bars** — one per lyric line, scrolling right to left.
+   Bar width = line duration; vertical position = a **placeholder** MIDI
+   value derived from a deterministic hash of the line text. The bars
+   look melodic but are not the real melody — they're a stand-in that
+   gets swapped for real pitch contour data once Phase 2's backend ships.
+   Bars containing the "now" line are brightened so the singer can see
+   what they should aim for.
+2. **User pitch ball** — a glowing yellow ball pinned to the vertical
+   "now" line. Its Y position is the user's current mic pitch in real
+   time (Hz → MIDI → canvas Y).
+3. **Pitch trail** — the user's recent pitch samples drawn as a polyline
+   that fades from translucent (oldest) to bright (newest), trailing
+   left from the ball.
+
+### Why canvas
+
+The trail redraws 60× per second; using React state + DOM nodes would
+trash CPU. Instead, the parent (`Karaoke.jsx`) passes the trail two refs
+(`featuresRef`, `pitchHistoryRef`) and a getter (`getPositionMs`). The
+rAF loop reads them each frame without triggering any React re-renders.
+
+### Pitch detection
+
+`Audio/usePitchDetector.js` uses standard time-domain autocorrelation:
+
+- Buffer size: 2048 samples
+- Poll rate: 20 Hz
+- Trim leading/trailing samples below 0.2 amplitude (silence at frame edges)
+- Compute `c[i] = Σ buf[j] * buf[j+i]` then find the peak past the initial monotonic decrease
+- Parabolic interpolation around the peak for sub-sample accuracy
+- Reject pitches outside 70 Hz – 1000 Hz (covers normal vocal range)
+- Confidence = peak height / `c[0]`
+
+This is the same algorithm as Chris Wilson's `PitchDetect` reference. Pure
+JS, no library needed.
+
+## Lyrics display — one line at a time
+
+The lyrics panel no longer auto-scrolls through every line. Instead it
+shows:
+
+- **Current line** — large, bold, primary-color, fades up + in on each
+  change via a CSS keyframe (`lyricIn`)
+- **Next 2 lines** — small, faded, no animation
+- **Before any line plays** — a small "Up next" preview of the first
+  line, so the screen isn't empty during the intro instrumental
+
+Past lines vanish. The screen stays focused on the moment.
+
+The plain-text fallback (no time sync) still renders the whole block
+in a centered scrollable column.
 
 ## Scoring (Phase 1 — rhythm only)
 
@@ -130,10 +193,13 @@ maps `DOMException.name` to stable error codes (`microphone_denied`,
 `microphone_not_found`, `microphone_error`), and stops every track in
 cleanup so the OS releases the mic indicator.
 
-**`Audio/useVAD.js`** — given a stream, wires it into an `AudioContext` →
-`MediaStreamAudioSource` → `AnalyserNode`. Polls `getFloatTimeDomainData`
-every 100 ms, computes RMS, exposes `{ rms, isVoiceActive }` where
-`isVoiceActive = rms > 0.01`. Tears down the context in cleanup.
+**`Audio/usePitchDetector.js`** — given a stream, wires it into an
+`AudioContext` → `MediaStreamAudioSource` → `AnalyserNode`. Polls
+`getFloatTimeDomainData` every 50 ms and runs autocorrelation (see
+"Pitch detection" above). Exposes `{ pitch, confidence, rms, isVoiceActive,
+featuresRef }` — same shape as the old `useVAD` plus pitch fields. The
+`featuresRef` mirror is what the `PitchTrail`'s rAF loop reads each
+frame without forcing re-renders.
 
 ## Routing
 

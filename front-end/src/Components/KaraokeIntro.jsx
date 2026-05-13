@@ -51,7 +51,7 @@ function StatusBadge({ state, label }) {
     }
 
     return (
-        <Stack direction="row" alignItems="center" spacing={1}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             {icon}
             <Typography sx={{ color, fontSize: '0.92rem', fontWeight: 500 }}>
                 {label}

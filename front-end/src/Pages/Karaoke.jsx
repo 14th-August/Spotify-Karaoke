@@ -31,9 +31,11 @@
  * Layout (playing phase):
  *   ┌─ header ─────────────────────────────────────────┐
  *   │  ← Back   Cover + Track name / Artist            │
+ *   ├──────────────────────────────────────────────────┤
+ *   │  PitchTrail (expected-bars + user pitch ball)    │
  *   ├─────────────────────────────────┬────────────────┤
- *   │                                 │  MicMeter      │
- *   │         LyricsPanel             │  ScoringDisplay│
+ *   │   Current lyric (large)         │  MicMeter      │
+ *   │   Next lines (faded)            │  ScoringDisplay│
  *   │                                 │                │
  *   └─────────────────────────────────┴────────────────┘
  */
@@ -56,10 +58,11 @@ import { getSyncedLyrics } from '../Api/lyrics';
 import { getToken, clearToken } from '../Authorization/tokenStorage';
 import { PlayerContext } from '../Player/PlayerContext';
 import useMicrophone from '../Audio/useMicrophone';
-import useVAD from '../Audio/useVAD';
+import usePitchDetector from '../Audio/usePitchDetector';
 import LyricsPanel from '../Components/LyricsPanel';
 import MicMeter from '../Components/MicMeter';
 import ScoringDisplay from '../Components/ScoringDisplay';
+import PitchTrail from '../Components/PitchTrail';
 import KaraokeIntro from '../Components/KaraokeIntro';
 import KaraokeCountdown from '../Components/KaraokeCountdown';
 
@@ -92,15 +95,21 @@ export default function Karaoke({ trackId }) {
     const [score, setScore] = useState(0);
 
     const { stream, error: micError } = useMicrophone();
-    const { rms, isVoiceActive } = useVAD(stream);
+    // featuresRef gives us a no-render-needed handle to the latest pitch +
+    // VAD reading — the PitchTrail's rAF loop reads it directly.
+    const { rms, isVoiceActive, featuresRef } = usePitchDetector(stream);
 
-    // Keep isVoiceActive in a ref so the scoring interval reads the latest
-    // value without re-creating the interval on every VAD tick.
+    // Mirror isVoiceActive in a ref so the scoring interval can read the
+    // latest value without re-creating the interval on every poll.
     const isVoiceActiveRef = useRef(false);
     useEffect(() => { isVoiceActiveRef.current = isVoiceActive; }, [isVoiceActive]);
 
-    // Rolling history of { positionMs, active } samples, trimmed to last 10 s.
+    // Rolling history of { positionMs, active } samples for line scoring;
+    // trimmed to the last 10 s.
     const vadHistoryRef = useRef([]);
+    // Rolling history of { time_ms, pitch } samples for the PitchTrail
+    // visualization; trimmed to the last 3 s (the visible past window).
+    const pitchHistoryRef = useRef([]);
     // Set of line indices already evaluated so we don't double-score them.
     const evaluatedRef = useRef(new Set());
     // Accumulates scored line results without causing a render on every push.
@@ -185,22 +194,35 @@ export default function Karaoke({ trackId }) {
         setPhase('countdown');
     }, []);
 
-    // ── VAD recording + scoring interval ──────────────────────────────────
-    // Runs at 10 Hz while playing and lyrics are loaded. Each tick:
-    //   • records a VAD sample keyed to the current position
+    // ── VAD/pitch recording + scoring interval ────────────────────────────
+    // Runs at 10 Hz while playing. Each tick:
+    //   • records a VAD sample (for line scoring)
+    //   • records a pitch sample (for the PitchTrail visualization)
     //   • evaluates any lines whose singing window has fully elapsed
     useEffect(() => {
+        if (isPaused) return;
         const lines = lyrics?.lines;
-        if (!lines || isPaused) return;
 
         const id = setInterval(() => {
             const pos = getPositionMs();
+            const pitch = featuresRef?.current?.pitch ?? null;
 
-            // Record sample.
+            // VAD sample → kept 10 s for line scoring.
             vadHistoryRef.current.push({ positionMs: pos, active: isVoiceActiveRef.current });
-            // Trim entries older than 10 seconds — they'll never be needed again.
-            const cutoff = pos - 10_000;
-            vadHistoryRef.current = vadHistoryRef.current.filter((s) => s.positionMs >= cutoff);
+            const vadCutoff = pos - 10_000;
+            vadHistoryRef.current = vadHistoryRef.current.filter((s) => s.positionMs >= vadCutoff);
+
+            // Pitch sample → kept 3 s (the trail's visible past window).
+            pitchHistoryRef.current.push({ time_ms: pos, pitch });
+            const pitchCutoff = pos - 3_000;
+            pitchHistoryRef.current = pitchHistoryRef.current.filter((s) => s.time_ms >= pitchCutoff);
+
+            // No lines = nothing to score; we still want the trail recording
+            // above to run so the singer can see their pitch.
+            if (!lines) {
+                setPositionMs(pos);
+                return;
+            }
 
             // Evaluate lines whose window has closed.
             let changed = false;
@@ -314,8 +336,8 @@ export default function Karaoke({ trackId }) {
                 <KaraokeCountdown value={countdown} cover={cover} />
             )}
 
-            {/* Playing layout. Only rendered in the playing phase so the lyrics
-                panel doesn't auto-scroll uselessly during the intro/countdown. */}
+            {/* Playing layout: pitch trail across the top, current/upcoming
+                lyrics centered below, mic meter + score on the right. */}
             {phase === 'playing' && track && (
             <>
             {/* ── Header ── */}
@@ -375,6 +397,19 @@ export default function Karaoke({ trackId }) {
                     </Typography>
                 )}
             </Box>
+
+            {/* ── Pitch trail ── */}
+            {/* Japanese-karaoke style band: placeholder expected-pitch bars
+                derived from line timings, with a glowing ball that tracks
+                the user's mic pitch live. Driven by rAF inside the
+                component — reads positionMs + featuresRef + pitchHistoryRef
+                each frame so it animates smoothly. */}
+            <PitchTrail
+                lines={lyrics?.lines}
+                getPositionMs={getPositionMs}
+                featuresRef={featuresRef}
+                pitchHistoryRef={pitchHistoryRef}
+            />
 
             {/* ── Body ── */}
             <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>

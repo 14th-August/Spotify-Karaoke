@@ -42,9 +42,8 @@ export default function ScoringDisplay({ score, lineResults }) {
             {recent.length > 0 && (
                 <Stack
                     direction="row"
-                    flexWrap="wrap"
                     gap={0.5}
-                    sx={{ mt: 1.5, justifyContent: 'center', maxWidth: 200 }}
+                    sx={{ mt: 1.5, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 200 }}
                 >
                     {recent.map((r, i) => (
                         <Chip
